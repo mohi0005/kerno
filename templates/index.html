@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RepoCompass — AI-Powered Open-Source Contribution Guide</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%234f46e5' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='10'/><polygon points='16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76'/></svg>">
+</head>
+<body>
+
+  <!-- Top App Navigation -->
+  <header class="app-header">
+    <div class="container header-inner">
+      <div class="brand-wrapper">
+        <div class="brand-icon">🧭</div>
+        <div>
+          <h1 class="brand-title">RepoCompass</h1>
+          <p class="brand-tagline">AI-Powered Open-Source Contribution Guide for Beginners</p>
+        </div>
+      </div>
+      <div class="header-badges">
+        <span class="badge-ai">
+          <span style="color: #4f46e5;">✨</span> Gemma 4 Edition (gemma-4-31b-it)
+        </span>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- Search / Input Hero Section -->
+    <section class="search-card">
+      <h2 class="search-title">Explore Any Public GitHub Repository</h2>
+      <p class="search-description">
+        Paste a GitHub repository link to instantly generate a beginner-friendly overview, file breakdown, setup instructions, and grounded contribution opportunities.
+      </p>
+
+      <form id="analyzeForm" class="search-form" onsubmit="handleAnalyze(event)">
+        <div class="url-input-wrapper">
+          <input
+            type="text"
+            id="repoUrl"
+            class="url-input"
+            placeholder="e.g. https://github.com/pallets/flask or pallets/flask"
+            autocomplete="off"
+            spellcheck="false"
+            required
+          />
+        </div>
+        <button type="submit" id="analyzeBtn" class="btn-primary">
+          <span id="btnIcon">🧭</span>
+          <span id="btnText">Generate Guide</span>
+        </button>
+      </form>
+
+      <!-- Quick Preset Chips -->
+      <div class="presets-row">
+        <span class="presets-label">Quick Repos:</span>
+        <button type="button" class="preset-chip" onclick="setRepo('pallets/flask')">pallets/flask</button>
+        <button type="button" class="preset-chip" onclick="setRepo('psf/requests')">psf/requests</button>
+        <button type="button" class="preset-chip" onclick="setRepo('fastapi/fastapi')">fastapi/fastapi</button>
+        <button type="button" class="preset-chip" onclick="setRepo('expressjs/express')">expressjs/express</button>
+        <button type="button" class="preset-chip" onclick="loadSampleDemo()">⚡ Instant Sample</button>
+      </div>
+
+      <!-- Advanced Settings (Optional Custom Key) -->
+      <div>
+        <span class="advanced-toggle" onclick="toggleAdvanced()">⚙️ Advanced API & Model Settings</span>
+        <div id="advancedPanel" class="advanced-panel">
+          <p style="margin-bottom: 8px; color: var(--text-muted);">
+            By default, RepoCompass uses the server's configured <code>GEMINI_API_KEY</code> and Gemma 4 model (<code>gemma-4-31b-it</code>).
+          </p>
+          <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <div style="flex: 1; min-width: 240px;">
+              <label style="display: block; font-size: 0.76rem; font-weight: 600; margin-bottom: 4px;">Custom Gemini API Key (optional):</label>
+              <input type="password" id="customApiKey" placeholder="AIzaSy..." class="url-input" style="padding: 6px 10px; font-size: 0.85rem;">
+            </div>
+            <div style="flex: 1; min-width: 200px;">
+              <label style="display: block; font-size: 0.76rem; font-weight: 600; margin-bottom: 4px;">Target Model ID:</label>
+              <select id="customModel" class="url-input" style="padding: 6px 10px; font-size: 0.85rem;">
+                <option value="gemma-4-31b-it" selected>gemma-4-31b-it (Verified Gemma 4)</option>
+                <option value="gemma-4-26b-a4b-it">gemma-4-26b-a4b-it (Gemma 4 MoE)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Error Alert Banner -->
+    <div id="errorAlert" class="alert-error" role="alert">
+      <span style="font-size: 1.2rem;">⚠️</span>
+      <div style="flex: 1;">
+        <strong>Error:</strong> <span id="errorMessage">Unable to process repository.</span>
+      </div>
+      <button type="button" onclick="dismissError()" style="background: none; border: none; font-size: 1rem; cursor: pointer; color: var(--danger);">&times;</button>
+    </div>
+
+    <!-- Loading Indicator -->
+    <div id="loadingIndicator" class="loading-indicator">
+      <div class="spinner"></div>
+      <h3 class="loading-title">Analyzing Repository with Gemma 4</h3>
+      <p id="loadingStatusText" class="loading-steps">
+        Fetching metadata, scanning manifest files, and synthesizing contribution guide...
+      </p>
+    </div>
+
+    <!-- Results Container -->
+    <div id="resultsContainer" class="results-container">
+      
+      <!-- 1. Repository Overview -->
+      <section class="dash-card">
+        <div class="dash-card-header">
+          <div class="card-title-group">
+            <span class="card-icon">📦</span>
+            <h2 class="card-title">Repository Overview</h2>
+          </div>
+          <span class="pill-fact">Verified GitHub Facts</span>
+        </div>
+
+        <div class="repo-headline">
+          <a id="repoNameLink" href="#" target="_blank" rel="noopener noreferrer" class="repo-name-link">owner/repo</a>
+          <span id="repoLicenseBadge" class="pill-fact">MIT</span>
+        </div>
+
+        <p id="repoDescription" class="repo-description">Repository description will appear here.</p>
+
+        <!-- Metrics Grid -->
+        <div class="metrics-grid">
+          <div class="metric-box">
+            <div class="metric-label">Stars</div>
+            <div id="metricStars" class="metric-value">0</div>
+          </div>
+          <div class="metric-box">
+            <div class="metric-label">Forks</div>
+            <div id="metricForks" class="metric-value">0</div>
+          </div>
+          <div class="metric-box">
+            <div class="metric-label">Open Issues</div>
+            <div id="metricIssues" class="metric-value">0</div>
+          </div>
+          <div class="metric-box">
+            <div class="metric-label">Default Branch</div>
+            <div id="metricBranch" class="metric-value">main</div>
+          </div>
+        </div>
+
+        <!-- Languages Breakdown -->
+        <div>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">Languages</span>
+          </div>
+          <div id="languageBar" class="language-bar"></div>
+          <div id="languageLegend" class="language-legend"></div>
+        </div>
+
+        <!-- Direct GitHub Action Links -->
+        <div class="quick-actions-row">
+          <a id="linkRepo" href="#" target="_blank" rel="noopener noreferrer" class="btn-secondary">🔗 Open on GitHub</a>
+          <a id="linkIssues" href="#" target="_blank" rel="noopener noreferrer" class="btn-secondary">🐛 Good First Issues</a>
+          <a id="linkPRs" href="#" target="_blank" rel="noopener noreferrer" class="btn-secondary">🔀 Pull Requests</a>
+          <a id="linkContributing" href="#" target="_blank" rel="noopener noreferrer" class="btn-secondary" style="display: none;">📜 Contributing Guidelines</a>
+        </div>
+      </section>
+
+      <!-- 2. Project Purpose & Explanation -->
+      <section class="dash-card">
+        <div class="dash-card-header">
+          <div class="card-title-group">
+            <span class="card-icon">💡</span>
+            <h2 class="card-title">Project Purpose & Architecture</h2>
+          </div>
+          <span id="aiStatusPill" class="pill-ai">Gemma 4 Analysis</span>
+        </div>
+
+        <div id="aiNoticeBanner" class="status-banner ai">
+          <span>✨</span>
+          <span id="aiNoticeText">Synthesized by Gemma 4 based on repository metadata and documentation.</span>
+        </div>
+
+        <div id="projectPurpose" class="purpose-content">
+          <!-- Populated dynamically -->
+        </div>
+      </section>
+
+      <!-- 3. Important Files & Configuration -->
+      <section class="dash-card">
+        <div class="dash-card-header">
+          <div class="card-title-group">
+            <span class="card-icon">📂</span>
+            <h2 class="card-title">Important Files & Structure</h2>
+          </div>
+          <span class="pill-fact">Actual Repository Files</span>
+        </div>
+
+        <p style="font-size: 0.88rem; color: var(--text-muted); margin-bottom: 16px;">
+          These key files were detected directly in the repository and are crucial for understanding the codebase:
+        </p>
+
+        <div id="importantFilesList" class="files-list">
+          <!-- Populated dynamically -->
+        </div>
+      </section>
+
+      <!-- 4. Setup & Installation Instructions -->
+      <section class="dash-card">
+        <div class="dash-card-header">
+          <div class="card-title-group">
+            <span class="card-icon">⚙️</span>
+            <h2 class="card-title">Setup & Local Development</h2>
+          </div>
+          <span class="pill-fact">Based on Detected Manifests</span>
+        </div>
+
+        <p style="font-size: 0.88rem; color: var(--text-muted); margin-bottom: 16px;">
+          Commands derived from verified configuration files (e.g. package.json, requirements.txt, pyproject.toml):
+        </p>
+
+        <div id="setupStepsList" class="setup-steps-list">
+          <!-- Populated dynamically -->
+        </div>
+      </section>
+
+      <!-- 5. Suggested Beginner Contribution Areas -->
+      <section class="dash-card">
+        <div class="dash-card-header">
+          <div class="card-title-group">
+            <span class="card-icon">🎯</span>
+            <h2 class="card-title">Beginner Contribution Opportunities</h2>
+          </div>
+          <span class="pill-ai">AI-Generated Ideas</span>
+        </div>
+
+        <!-- Required Disclaimer Banner -->
+        <div class="disclaimer-banner">
+          <strong>⚠️ Notice for Contributors:</strong>
+          These opportunities are exploratory suggestions synthesized by Gemma 4 from codebase structure and documentation. They are <em>not</em> verified open GitHub issues. Always check the repository's open issues and ask maintainers before beginning large changes.
+        </div>
+
+        <div id="suggestionsGrid" class="suggestions-grid">
+          <!-- Populated dynamically -->
+        </div>
+      </section>
+
+      <!-- 6. Contribution Checklist & Helpful Resources -->
+      <section class="dash-card">
+        <div class="dash-card-header">
+          <div class="card-title-group">
+            <span class="card-icon">✅</span>
+            <h2 class="card-title">First Contribution Checklist</h2>
+          </div>
+          <span class="pill-fact">Interactive Workflow</span>
+        </div>
+
+        <p style="font-size: 0.88rem; color: var(--text-muted); margin-bottom: 16px;">
+          Follow these standard best practices for submitting your pull request:
+        </p>
+
+        <div id="checklistContainer" class="checklist-wrapper">
+          <!-- Populated dynamically -->
+        </div>
+
+        <div style="margin-top: 24px; border-top: 1px solid var(--border-color); padding-top: 18px;">
+          <h3 style="font-size: 0.95rem; font-weight: 700; margin-bottom: 12px; color: var(--text-main);">Helpful Contributor Resources</h3>
+          <div class="links-grid">
+            <a href="https://opensource.guide/how-to-contribute/" target="_blank" rel="noopener noreferrer" class="link-card">
+              <span class="link-card-icon">📖</span>
+              <div>
+                <div class="link-card-title">Open Source Guide</div>
+                <div class="link-card-sub">How to contribute to open source</div>
+              </div>
+            </a>
+            <a href="https://goodfirstissue.dev/" target="_blank" rel="noopener noreferrer" class="link-card">
+              <span class="link-card-icon">🏷️</span>
+              <div>
+                <div class="link-card-title">Good First Issue</div>
+                <div class="link-card-sub">Find beginner tasks across projects</div>
+              </div>
+            </a>
+            <a href="https://docs.github.com/en/get-started/exploring-projects-on-github/finding-ways-to-contribute-to-open-source-on-github" target="_blank" rel="noopener noreferrer" class="link-card">
+              <span class="link-card-icon">🐙</span>
+              <div>
+                <div class="link-card-title">GitHub Guides</div>
+                <div class="link-card-sub">Ways to contribute on GitHub</div>
+              </div>
+            </a>
+            <a href="https://git-scm.com/book/en/v2" target="_blank" rel="noopener noreferrer" class="link-card">
+              <span class="link-card-icon">💻</span>
+              <div>
+                <div class="link-card-title">Pro Git Book</div>
+                <div class="link-card-sub">Free comprehensive Git reference</div>
+              </div>
+            </a>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="container app-footer">
+    <p>
+      RepoCompass &bull; Open-source contribution guide powered by Google's <strong>Gemma 4</strong> (<code>gemma-4-31b-it</code>).
+    </p>
+    <p style="margin-top: 6px; font-size: 0.78rem;">
+      Released under the <a href="https://opensource.org/licenses/MIT" target="_blank" rel="noopener noreferrer">MIT License</a>.
+    </p>
+  </footer>
+
+  <!-- Application Script -->
+  <script>
+    const LANGUAGE_COLORS = {
+      Python: "#3572A5",
+      JavaScript: "#f1e05a",
+      TypeScript: "#3178c6",
+      HTML: "#e34c26",
+      CSS: "#563d7c",
+      Rust: "#dea584",
+      Go: "#00ADD8",
+      Java: "#b07219",
+      C: "#555555",
+      "C++": "#f34b7d",
+      "C#": "#178600",
+      Ruby: "#701516",
+      PHP: "#4F5D95",
+      Shell: "#89e051",
+      Swift: "#F05138",
+      Kotlin: "#A97BFF",
+      Dart: "#00B4AB",
+      Default: "#64748b"
+    };
+
+    function escapeHtml(str) {
+      if (!str) return "";
+      return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    function setRepo(repoName) {
+      document.getElementById("repoUrl").value = repoName;
+      document.getElementById("analyzeForm").dispatchEvent(new Event("submit"));
+    }
+
+    function toggleAdvanced() {
+      const panel = document.getElementById("advancedPanel");
+      panel.classList.toggle("open");
+    }
+
+    function showError(message) {
+      const alert = document.getElementById("errorAlert");
+      const text = document.getElementById("errorMessage");
+      text.textContent = message;
+      alert.classList.add("visible");
+      alert.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+
+    function dismissError() {
+      document.getElementById("errorAlert").classList.remove("visible");
+    }
+
+    function copyToClipboard(text, btnElement) {
+      navigator.clipboard.writeText(text).then(() => {
+        const originalText = btnElement.textContent;
+        btnElement.textContent = "Copied!";
+        setTimeout(() => {
+          btnElement.textContent = originalText;
+        }, 1800);
+      }).catch(err => {
+        console.error("Failed to copy text:", err);
+      });
+    }
+
+    async function handleAnalyze(e) {
+      if (e) e.preventDefault();
+      dismissError();
+
+      const urlInput = document.getElementById("repoUrl");
+      const url = urlInput.value.trim();
+      if (!url) return;
+
+      const customApiKey = document.getElementById("customApiKey").value.trim();
+      const customModel = document.getElementById("customModel").value;
+
+      const analyzeBtn = document.getElementById("analyzeBtn");
+      const btnIcon = document.getElementById("btnIcon");
+      const btnText = document.getElementById("btnText");
+      const loading = document.getElementById("loadingIndicator");
+      const results = document.getElementById("resultsContainer");
+
+      // UI Loading state
+      analyzeBtn.disabled = true;
+      btnIcon.textContent = "⏳";
+      btnText.textContent = "Analyzing...";
+      loading.classList.add("visible");
+      results.classList.remove("visible");
+
+      try {
+        const response = await fetch("/api/analyze", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            url: url,
+            api_key: customApiKey,
+            model: customModel
+          })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok || data.error) {
+          throw new Error(data.error || "Failed to analyze repository.");
+        }
+
+        renderDashboard(data.facts, data.guide, data.model_id);
+      } catch (err) {
+        showError(err.message || "An unexpected error occurred.");
+      } finally {
+        analyzeBtn.disabled = false;
+        btnIcon.textContent = "🧭";
+        btnText.textContent = "Generate Guide";
+        loading.classList.remove("visible");
+      }
+    }
+
+    async function loadSampleDemo() {
+      dismissError();
+      const loading = document.getElementById("loadingIndicator");
+      const results = document.getElementById("resultsContainer");
+      document.getElementById("repoUrl").value = "pallets/flask";
+
+      loading.classList.add("visible");
+      results.classList.remove("visible");
+
+      try {
+        const response = await fetch("/api/sample");
+        const data = await response.json();
+        renderDashboard(data.facts, data.guide, data.model_id);
+      } catch (err) {
+        showError("Failed to load sample demo: " + err.message);
+      } finally {
+        loading.classList.remove("visible");
+      }
+    }
+
+    function renderDashboard(facts, guide, modelId) {
+      // 1. Repository Overview
+      const nameLink = document.getElementById("repoNameLink");
+      nameLink.textContent = facts.full_name;
+      nameLink.href = facts.html_url;
+
+      document.getElementById("repoDescription").textContent = facts.description || "No description provided.";
+      document.getElementById("metricStars").textContent = Number(facts.stars || 0).toLocaleString();
+      document.getElementById("metricForks").textContent = Number(facts.forks || 0).toLocaleString();
+      document.getElementById("metricIssues").textContent = Number(facts.open_issues || 0).toLocaleString();
+      document.getElementById("metricBranch").textContent = facts.default_branch || "main";
+      document.getElementById("repoLicenseBadge").textContent = facts.license_spdx || facts.license || "No license";
+
+      // Languages
+      const langBar = document.getElementById("languageBar");
+      const langLegend = document.getElementById("languageLegend");
+      langBar.innerHTML = "";
+      langLegend.innerHTML = "";
+
+      if (facts.languages && facts.languages.length > 0) {
+        facts.languages.forEach(l => {
+          const color = LANGUAGE_COLORS[l.name] || LANGUAGE_COLORS.Default;
+          
+          const seg = document.createElement("div");
+          seg.className = "language-segment";
+          seg.style.width = l.percentage + "%";
+          seg.style.backgroundColor = color;
+          seg.title = `${l.name}: ${l.percentage}%`;
+          langBar.appendChild(seg);
+
+          const leg = document.createElement("div");
+          leg.className = "legend-item";
+          leg.innerHTML = `<span class="legend-dot" style="background-color: ${color};"></span><span>${escapeHtml(l.name)} (${l.percentage}%)</span>`;
+          langLegend.appendChild(leg);
+        });
+      } else {
+        langLegend.innerHTML = '<span style="color: var(--text-muted); font-size: 0.8rem;">No language breakdown available.</span>';
+      }
+
+      // Action links
+      document.getElementById("linkRepo").href = facts.html_url;
+      document.getElementById("linkIssues").href = `${facts.html_url}/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22%2C%22help+wanted%22`;
+      document.getElementById("linkPRs").href = `${facts.html_url}/pulls`;
+      
+      const contribLink = document.getElementById("linkContributing");
+      if (facts.community_files && facts.community_files.contributing) {
+        contribLink.href = facts.community_files.contributing;
+        contribLink.style.display = "inline-flex";
+      } else {
+        contribLink.style.display = "none";
+      }
+
+      // 2. Project Purpose
+      const aiStatusPill = document.getElementById("aiStatusPill");
+      const aiNoticeBanner = document.getElementById("aiNoticeBanner");
+      const aiNoticeText = document.getElementById("aiNoticeText");
+
+      if (guide.is_ai_generated) {
+        aiStatusPill.className = "pill-ai";
+        aiStatusPill.textContent = `Gemma 4 (${guide.model_used || modelId})`;
+        aiNoticeBanner.className = "status-banner ai";
+        aiNoticeText.textContent = guide.ai_status_message || "Synthesized by Gemma 4 via Google Gemini API.";
+      } else {
+        aiStatusPill.className = "pill-fact";
+        aiStatusPill.textContent = "Heuristic Analysis";
+        aiNoticeBanner.className = "status-banner heuristic";
+        aiNoticeText.textContent = guide.ai_status_message || "Generated from repository files and manifests.";
+      }
+
+      const purposeDiv = document.getElementById("projectPurpose");
+      const paragraphs = (guide.project_purpose || facts.description || "").split("\n\n");
+      purposeDiv.innerHTML = paragraphs.map(p => `<p>${escapeHtml(p)}</p>`).join("");
+
+      // 3. Important Files
+      const filesContainer = document.getElementById("importantFilesList");
+      filesContainer.innerHTML = "";
+
+      if (guide.important_files && guide.important_files.length > 0) {
+        guide.important_files.forEach(f => {
+          const importance = (f.importance || "Helpful").toLowerCase();
+          let badgeClass = "badge-helpful";
+          if (importance.includes("essential")) badgeClass = "badge-essential";
+          else if (importance.includes("high")) badgeClass = "badge-high";
+          else if (importance.includes("reference")) badgeClass = "badge-reference";
+
+          const fileUrl = `${facts.html_url}/blob/${facts.default_branch}/${f.path}`;
+
+          const item = document.createElement("div");
+          item.className = "file-item";
+          item.innerHTML = `
+            <div class="file-info">
+              <a href="${escapeHtml(fileUrl)}" target="_blank" rel="noopener noreferrer" class="file-name">
+                📄 ${escapeHtml(f.path)}
+              </a>
+              <div class="file-role">${escapeHtml(f.role)}</div>
+            </div>
+            <span class="badge-importance ${badgeClass}">${escapeHtml(f.importance || "Helpful")}</span>
+          `;
+          filesContainer.appendChild(item);
+        });
+      } else {
+        filesContainer.innerHTML = '<div style="color: var(--text-muted); font-size: 0.88rem;">No specific key files flagged.</div>';
+      }
+
+      // 4. Setup Steps
+      const stepsContainer = document.getElementById("setupStepsList");
+      stepsContainer.innerHTML = "";
+
+      if (guide.setup_steps && guide.setup_steps.length > 0) {
+        guide.setup_steps.forEach((step, idx) => {
+          const card = document.createElement("div");
+          card.className = "setup-step-card";
+
+          const cmdEscaped = escapeHtml(step.command);
+          const rawCmd = step.command;
+
+          card.innerHTML = `
+            <div class="setup-step-header">
+              <span>${escapeHtml(step.title || `Step ${idx + 1}`)}</span>
+            </div>
+            <div class="setup-step-body">
+              <div class="code-wrapper">
+                <button class="btn-copy" onclick="copyToClipboard(\`${rawCmd.replace(/`/g, "\\`").replace(/\\/g, "\\\\")}\`, this)">Copy</button>
+                <pre class="code-block">${cmdEscaped}</pre>
+              </div>
+              ${step.notes ? `<div class="setup-step-notes">💡 ${escapeHtml(step.notes)}</div>` : ""}
+            </div>
+          `;
+          stepsContainer.appendChild(card);
+        });
+      } else {
+        stepsContainer.innerHTML = '<div style="color: var(--text-muted); font-size: 0.88rem;">No setup commands could be determined automatically. Check the project README.</div>';
+      }
+
+      // 5. Suggested Contributions
+      const suggGrid = document.getElementById("suggestionsGrid");
+      suggGrid.innerHTML = "";
+
+      if (guide.suggested_contributions && guide.suggested_contributions.length > 0) {
+        guide.suggested_contributions.forEach(s => {
+          const diffClass = (s.difficulty || "").toLowerCase().includes("beginner") ? "difficulty-beginner" : "difficulty-intermediate";
+          
+          const card = document.createElement("div");
+          card.className = "suggestion-card";
+          card.innerHTML = `
+            <div class="suggestion-header">
+              <h3 class="suggestion-title">${escapeHtml(s.area)}</h3>
+              <span class="badge-difficulty ${diffClass}">${escapeHtml(s.difficulty || "Beginner")}</span>
+            </div>
+            <p class="suggestion-desc">${escapeHtml(s.description)}</p>
+            ${s.evidence ? `<div class="suggestion-evidence"><strong>Evidence:</strong> ${escapeHtml(s.evidence)}</div>` : ""}
+          `;
+          suggGrid.appendChild(card);
+        });
+      } else {
+        suggGrid.innerHTML = '<div style="color: var(--text-muted); font-size: 0.88rem;">No beginner opportunities suggested yet.</div>';
+      }
+
+      // 6. Checklist
+      const checkContainer = document.getElementById("checklistContainer");
+      checkContainer.innerHTML = "";
+
+      if (guide.checklist && guide.checklist.length > 0) {
+        guide.checklist.forEach((item, i) => {
+          const label = document.createElement("label");
+          label.className = "checklist-item";
+          label.innerHTML = `
+            <input type="checkbox" onchange="this.parentElement.classList.toggle('checked', this.checked)">
+            <span class="checklist-text">${escapeHtml(item.step || item)}</span>
+          `;
+          checkContainer.appendChild(label);
+        });
+      }
+
+      // Reveal results smoothly
+      document.getElementById("resultsContainer").classList.add("visible");
+      document.getElementById("resultsContainer").scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  </script>
+</body>
+</html>

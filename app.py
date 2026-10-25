@@ -1,670 +1,726 @@
-import os, json, re, time, subprocess, tempfile
-from flask import Flask, request, jsonify, render_template_string, send_from_directory
-from dotenv import load_dotenv
-import requests
+import os
+import re
+import json
+import logging
+from urllib.parse import urlparse
+from typing import Dict, Any, List, Optional, Tuple
 
-# Load environment variables from .env.local and .env
+import requests
+from flask import Flask, request, jsonify, render_template
+from dotenv import load_dotenv
+
+# Load environment variables
 load_dotenv(".env.local")
 load_dotenv(".env")
 
-app = Flask(__name__, static_folder='dist', static_url_path='')
+# Configure logging
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+logger = logging.getLogger("repocompass")
+
+app = Flask(__name__)
 
 # ==============================================================================
 # GEMMA 4 VERIFIED MODEL IDENTIFIERS
-# Verified from Google Gemini API documentation (released April 2, 2026):
-# - "gemma-4-31b-it"   (Default open-weight instruction-tuned 31B model)
-# - "gemma-4-26b-a4b-it" (Open-weight 26B model)
+# Verified from Google Gemini API official documentation:
+# - "gemma-4-31b-it"   (Default recommended 31B instruction-tuned model)
+# - "gemma-4-26b-a4b-it" (Open-weight 26B MoE instruction-tuned model)
 # ==============================================================================
 DEFAULT_GEMMA_MODEL = os.environ.get("GEMMA_MODEL", "gemma-4-31b-it")
-DEFAULT_OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "gemma2")
-DEFAULT_OLLAMA_HOST = os.environ.get("OLLAMA_HOST", "http://localhost:11434")
 
-PAGE = """<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ReproBot — Autonomous Bug Reproduction with Gemma 4</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <style>
-    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
-    .animate-pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
-  </style>
-</head>
-<body class="bg-slate-950 text-slate-100 min-h-screen py-10 px-4 font-sans">
-  <div class="max-w-4xl mx-auto space-y-6">
-    <!-- Header -->
-    <header class="border-b border-slate-800 pb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-      <div>
-        <div class="flex items-center gap-3">
-          <span class="text-3xl">🤖</span>
-          <h1 class="text-2xl font-bold tracking-tight text-white">ReproBot</h1>
-          <span class="bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 text-xs px-2.5 py-1 rounded-full font-medium">Gemma 4 Edition</span>
-        </div>
-        <p class="text-slate-400 text-sm mt-1">Autonomous bug reproduction engine in isolated Docker sandboxes.</p>
-      </div>
-      <div id="dockerStatus" class="text-xs px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-400 flex items-center gap-2">
-        <span class="w-2 h-2 rounded-full bg-amber-400"></span> Checking Docker...
-      </div>
-    </header>
+GITHUB_API_BASE = "https://api.github.com"
 
-    <!-- Sandbox Isolation Banner -->
-    <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-3.5 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400">
-      <div class="flex items-center gap-2 font-mono">
-        <span class="text-emerald-400 font-bold">🔒 Docker Sandbox:</span>
-        <span class="bg-slate-800 px-2 py-0.5 rounded border border-slate-700">--network none</span>
-        <span class="bg-slate-800 px-2 py-0.5 rounded border border-slate-700">--memory 256m</span>
-        <span class="bg-slate-800 px-2 py-0.5 rounded border border-slate-700">--cpus 1</span>
-        <span class="bg-slate-800 px-2 py-0.5 rounded border border-slate-700">30s timeout</span>
-        <span class="bg-slate-800 px-2 py-0.5 rounded border border-slate-700">read-only :ro</span>
-      </div>
-      <div class="text-amber-400 font-medium">Host Execution Strictly Forbidden</div>
-    </div>
-
-    <!-- Input Form -->
-    <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
-      <div>
-        <label for="issueUrl" class="block text-sm font-medium text-slate-200 mb-1.5">GitHub Issue URL</label>
-        <div class="flex gap-2">
-          <input type="url" id="issueUrl" placeholder="https://github.com/owner/repo/issues/123" 
-            class="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-3.5 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500">
-          <button id="runBtn" onclick="runRepro()" 
-            class="bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-sm px-6 py-2.5 rounded-lg transition-colors flex items-center gap-2 shadow-lg shadow-indigo-600/20">
-            <span>Reproduce</span>
-          </button>
-        </div>
-      </div>
-
-      <!-- Quick Presets -->
-      <div class="flex items-center gap-2 pt-1 flex-wrap text-xs">
-        <span class="text-slate-400">Quick Demos:</span>
-        <button onclick="setSample('https://github.com/python/cpython/issues/160598')" 
-          class="bg-slate-800 hover:bg-slate-700 text-slate-300 px-2.5 py-1 rounded border border-slate-700">cpython/issues/160598</button>
-        <button onclick="setSample('https://github.com/psf/requests/issues/1')" 
-          class="bg-slate-800 hover:bg-slate-700 text-slate-300 px-2.5 py-1 rounded border border-slate-700">requests/issues/1</button>
-        <button onclick="loadSampleDemo()" 
-          class="bg-indigo-900/50 hover:bg-indigo-900/70 text-indigo-300 px-2.5 py-1 rounded border border-indigo-700/50">Load sample (offline demo)</button>
-      </div>
-
-      <!-- Engine Configuration -->
-      <div class="pt-3 border-t border-slate-800/80 grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-        <div>
-          <label class="block text-slate-400 mb-1">AI Provider</label>
-          <select id="provider" class="w-full bg-slate-950 border border-slate-800 rounded p-2 text-slate-200">
-            <option value="gemini">Gemini API (Gemma 4: gemma-4-31b-it)</option>
-            <option value="ollama">Ollama (Open-Weight Local Gemma)</option>
-          </select>
-        </div>
-        <div>
-          <label class="block text-slate-400 mb-1">Target Model ID</label>
-          <input type="text" id="modelName" value="gemma-4-31b-it" 
-            class="w-full bg-slate-950 border border-slate-800 rounded p-2 text-slate-200 font-mono">
-        </div>
-      </div>
-    </div>
-
-    <!-- Live Status / Loading -->
-    <div id="loader" class="hidden bg-slate-900 border border-indigo-500/30 rounded-xl p-4 text-center">
-      <div class="inline-flex items-center gap-3 text-indigo-400 text-sm font-medium">
-        <svg class="animate-spin h-5 w-5 text-indigo-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
-        </svg>
-        <span id="loaderMsg">Fetching issue and querying Gemma 4 model...</span>
-      </div>
-    </div>
-
-    <!-- Error Display -->
-    <div id="errorBox" class="hidden bg-red-950/40 border border-red-800/60 rounded-xl p-4 text-sm text-red-300"></div>
-
-    <!-- Results Section -->
-    <div id="resultBox" class="hidden space-y-5">
-      <!-- Visible Sample Notice (Required for demo mode) -->
-      <div id="sampleNotice" class="hidden bg-amber-500/20 text-amber-300 border border-amber-500/50 px-4 py-2 rounded-xl text-xs font-bold tracking-wide uppercase flex items-center gap-2 shadow-sm">
-        <span>⚠️</span> <span>SAMPLE, not a live run</span>
-      </div>
-
-      <!-- Verdict Card -->
-      <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div class="text-xs text-slate-400 uppercase font-semibold tracking-wider">Reproduction Verdict</div>
-          <div id="verdictBadge" class="mt-1 inline-block text-xl font-black px-4 py-1.5 rounded-lg uppercase tracking-wide">
-            UNCLEAR
-          </div>
-          <div id="issueTitle" class="text-sm text-slate-300 mt-2 font-medium"></div>
-        </div>
-        <div class="text-right text-xs text-slate-400 space-y-1">
-          <div>Language: <span id="resLang" class="font-mono text-slate-200 uppercase font-bold">PYTHON</span></div>
-          <div>Docker Exit Code: <span id="resExitCode" class="font-mono text-slate-200">0</span></div>
-          <div>Execution Time: <span id="resDuration" class="font-mono text-slate-200">0.0s</span></div>
-        </div>
-      </div>
-
-      <!-- Extracted Code -->
-      <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
-        <div class="bg-slate-950/60 px-4 py-2.5 border-b border-slate-800 flex items-center justify-between">
-          <span class="text-xs font-semibold text-slate-300 uppercase tracking-wider">Extracted Standalone Reproduction Code</span>
-          <button onclick="copyCode()" class="text-xs text-slate-400 hover:text-white transition-colors bg-slate-800 px-2 py-1 rounded">Copy Code</button>
-        </div>
-        <pre id="codeView" class="p-4 text-xs font-mono text-emerald-400 overflow-x-auto max-h-72 bg-slate-950"></pre>
-      </div>
-
-      <!-- Real Docker Output -->
-      <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
-        <div class="bg-slate-950/60 px-4 py-2.5 border-b border-slate-800 flex items-center justify-between">
-          <span class="text-xs font-semibold text-slate-300 uppercase tracking-wider">Real Docker Sandbox Terminal Output</span>
-          <span id="sandboxDetails" class="text-xs text-slate-500 font-mono">--network none --memory 256m --cpus 1 30s timeout</span>
-        </div>
-        <pre id="dockerOutput" class="p-4 text-xs font-mono text-slate-200 overflow-x-auto max-h-60 bg-black"></pre>
-      </div>
-    </div>
-
-    <!-- Page Footer with Model Name -->
-    <footer class="border-t border-slate-800 pt-6 pb-2 text-center text-xs text-slate-500 space-y-1">
-      <div>ReproBot · Autonomous Bug Reproduction Sandbox</div>
-      <div>Active Engine Model: <span class="font-mono text-indigo-400 font-semibold" id="footerModelName">gemma-4-31b-it</span> (<span id="footerProvider" class="text-slate-400">Gemini API</span>)</div>
-    </footer>
-  </div>
-
-  <script>
-    async function checkHealth() {
-      try {
-        const res = await fetch('/health');
-        const data = await res.json();
-        const d = document.getElementById('dockerStatus');
-        if (data.docker_running) {
-          d.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-400"></span> Docker Sandbox Online';
-          d.className = d.className.replace('text-slate-400', 'text-emerald-400');
-        } else {
-          d.innerHTML = '<span class="w-2 h-2 rounded-full bg-amber-400"></span> Docker Offline (Start Docker Desktop)';
-          d.className = d.className.replace('text-slate-400', 'text-amber-400');
-        }
-      } catch (e) {
-        console.error(e);
-      }
-    }
-    checkHealth();
-
-    function setSample(url) {
-      document.getElementById('issueUrl').value = url;
-    }
-
-    async function loadSampleDemo() {
-      document.getElementById('issueUrl').value = 'https://github.com/demo/sample-repo/issues/42';
-      runRepro(true);
-    }
-
-    function updateFooterModel() {
-      const p = document.getElementById('provider').value;
-      const m = document.getElementById('modelName').value;
-      document.getElementById('footerModelName').textContent = m;
-      document.getElementById('footerProvider').textContent = p === 'ollama' ? 'Ollama' : 'Gemini API';
-    }
-
-    document.getElementById('provider').addEventListener('change', function() {
-      if (this.value === 'ollama') {
-        document.getElementById('modelName').value = 'gemma2';
-      } else {
-        document.getElementById('modelName').value = 'gemma-4-31b-it';
-      }
-      updateFooterModel();
-    });
-    document.getElementById('modelName').addEventListener('input', updateFooterModel);
-    updateFooterModel();
-
-    function copyCode() {
-      const code = document.getElementById('codeView').textContent;
-      navigator.clipboard.writeText(code);
-      alert('Code copied to clipboard!');
-    }
-
-    async function runRepro(isMock = false) {
-      const url = document.getElementById('issueUrl').value.trim();
-      if (!url) {
-        alert('Please enter a GitHub Issue URL');
-        return;
-      }
-
-      const provider = document.getElementById('provider').value;
-      const model = document.getElementById('modelName').value;
-
-      document.getElementById('errorBox').classList.add('hidden');
-      document.getElementById('resultBox').classList.add('hidden');
-      document.getElementById('sampleNotice').classList.add('hidden');
-      document.getElementById('loader').classList.remove('hidden');
-      document.getElementById('runBtn').disabled = true;
-
-      try {
-        const res = await fetch('/reproduce', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url, provider, model, mock: isMock })
-        });
-        const d = await res.json();
-        document.getElementById('loader').classList.add('hidden');
-        document.getElementById('runBtn').disabled = false;
-
-        if (d.error && !d.verdict) {
-          document.getElementById('errorBox').textContent = d.error;
-          document.getElementById('errorBox').classList.remove('hidden');
-          return;
-        }
-
-        // Render Results
-        document.getElementById('resultBox').classList.remove('hidden');
-        if (isMock || d.is_mock) {
-          document.getElementById('sampleNotice').classList.remove('hidden');
-        } else {
-          document.getElementById('sampleNotice').classList.add('hidden');
-        }
-
-        document.getElementById('issueTitle').textContent = d.issue ? `[#${d.issue.number}] ${d.issue.title}` : url;
-        document.getElementById('resLang').textContent = d.language || 'NONE';
-        document.getElementById('resExitCode').textContent = d.docker ? d.docker.exit_code : 'N/A';
-        document.getElementById('resDuration').textContent = d.docker ? `${d.docker.duration}s` : '0s';
-
-        document.getElementById('codeView').textContent = d.code || '(No reproduction code extracted)';
-        const terminalOut = (d.docker ? (d.docker.stdout + (d.docker.stderr ? "\\n" + d.docker.stderr : "")) : d.error) || '(No console output)';
-        document.getElementById('dockerOutput').textContent = terminalOut;
-
-        const badge = document.getElementById('verdictBadge');
-        const verdict = d.verdict || 'UNCLEAR';
-        badge.textContent = verdict;
-
-        if (verdict === 'REPRODUCED') {
-          badge.className = 'mt-1 inline-block text-xl font-black px-4 py-1.5 rounded-lg uppercase tracking-wide bg-rose-500/20 text-rose-400 border border-rose-500/40';
-        } else if (verdict === 'NOT_REPRODUCED') {
-          badge.className = 'mt-1 inline-block text-xl font-black px-4 py-1.5 rounded-lg uppercase tracking-wide bg-emerald-500/20 text-emerald-400 border border-emerald-500/40';
-        } else if (verdict === 'NO CODE FOUND') {
-          badge.className = 'mt-1 inline-block text-xl font-black px-4 py-1.5 rounded-lg uppercase tracking-wide bg-slate-700/50 text-slate-300 border border-slate-600';
-        } else {
-          badge.className = 'mt-1 inline-block text-xl font-black px-4 py-1.5 rounded-lg uppercase tracking-wide bg-amber-500/20 text-amber-400 border border-amber-500/40';
-        }
-
-      } catch (err) {
-        document.getElementById('loader').classList.add('hidden');
-        document.getElementById('runBtn').disabled = false;
-        document.getElementById('errorBox').textContent = 'Request failed: ' + err.message;
-        document.getElementById('errorBox').classList.remove('hidden');
-      }
-    }
-  </script>
-</body>
-</html>
-"""
 
 # ==============================================================================
-# ROUTING & STATIC ASSET HANDLING
+# GITHUB REPOSITORY URL VALIDATION & EXTRACTION
 # ==============================================================================
-@app.route("/", defaults={"path": ""})
-@app.route("/<path:path>")
-def serve(path):
-    if path != "" and os.path.exists(os.path.join(app.static_folder, path)):
-        return send_from_directory(app.static_folder, path)
-    if os.environ.get("SERVE_DIST") and os.path.exists(os.path.join(app.static_folder, "index.html")):
-        return send_from_directory(app.static_folder, "index.html")
-    return render_template_string(PAGE)
+def parse_github_url(raw_url: str) -> Tuple[str, str]:
+    """
+    Validates and extracts (owner, repo) from a GitHub URL or 'owner/repo' string.
+    Supports:
+      - https://github.com/owner/repo
+      - https://github.com/owner/repo.git
+      - https://github.com/owner/repo/tree/main/subfolder
+      - github.com/owner/repo
+      - owner/repo
+    """
+    if not raw_url or not isinstance(raw_url, str):
+        raise ValueError("Please provide a valid GitHub repository URL.")
 
-@app.get("/health")
-def health():
-    return jsonify({
-        "status": "ok",
-        "app": "ReproBot",
-        "docker_running": is_docker_running(),
-        "default_gemma_model": DEFAULT_GEMMA_MODEL,
-        "default_ollama_model": DEFAULT_OLLAMA_MODEL
-    })
+    raw_url = raw_url.strip()
+
+    # If user provided owner/repo shorthand
+    shorthand_match = re.match(r"^([a-zA-Z0-9_.-]+)/([a-zA-Z0-9_.-]+)$", raw_url)
+    if shorthand_match:
+        owner, repo = shorthand_match.group(1), shorthand_match.group(2)
+        if repo.endswith(".git"):
+            repo = repo[:-4]
+        return owner, repo
+
+    # Normalize protocol if omitted
+    if not raw_url.startswith("http://") and not raw_url.startswith("https://"):
+        raw_url = "https://" + raw_url
+
+    parsed = urlparse(raw_url)
+    if "github.com" not in parsed.netloc.lower():
+        raise ValueError("Only public GitHub repositories (github.com) are supported.")
+
+    parts = [p for p in parsed.path.strip("/").split("/") if p]
+    if len(parts) < 2:
+        raise ValueError("Invalid GitHub URL format. Expected: https://github.com/owner/repo")
+
+    owner = parts[0]
+    repo = parts[1]
+
+    if repo.endswith(".git"):
+        repo = repo[:-4]
+
+    # Sanitize owner and repo
+    if not re.match(r"^[a-zA-Z0-9_.-]+$", owner) or not re.match(r"^[a-zA-Z0-9_.-]+$", repo):
+        raise ValueError("GitHub owner or repository name contains invalid characters.")
+
+    return owner, repo
+
 
 # ==============================================================================
-# GITHUB ISSUE INGESTION
+# GITHUB REST API DATA EXTRACTION
 # ==============================================================================
-def fetch_github_issue(issue_url: str) -> dict:
-    match = re.search(r"github\.com/([^/]+)/([^/]+)/issues/(\d+)", issue_url)
-    if not match:
-        raise ValueError("Invalid GitHub issue URL. Expected format: https://github.com/{owner}/{repo}/issues/{number}")
-    owner, repo, issue_number = match.groups()
-    api_url = f"https://api.github.com/repos/{owner}/{repo}/issues/{issue_number}"
-    headers = {"Accept": "application/vnd.github.v3+json", "User-Agent": "ReproBot-Bug-Reproduction"}
-    
-    github_token = os.environ.get("GITHUB_TOKEN")
-    if github_token:
-        headers["Authorization"] = f"token {github_token}"
-    
-    resp = requests.get(api_url, headers=headers, timeout=15)
+def fetch_github_repo_facts(owner: str, repo: str, github_token: Optional[str] = None) -> Dict[str, Any]:
+    """
+    Fetches real repository facts directly from the GitHub REST API.
+    Retrieves metadata, language breakdown, root tree files, README, and manifests.
+    """
+    headers = {
+        "Accept": "application/vnd.github.v3+json",
+        "User-Agent": "RepoCompass-OpenSource-Guide/1.0"
+    }
+    token = github_token or os.environ.get("GITHUB_TOKEN")
+    if token and token.strip() and token.strip() != "your_github_personal_access_token_here":
+        headers["Authorization"] = f"token {token.strip()}"
+
+    # 1. Fetch Repository Metadata
+    repo_url = f"{GITHUB_API_BASE}/repos/{owner}/{repo}"
+    try:
+        resp = requests.get(repo_url, headers=headers, timeout=12)
+    except requests.RequestException as e:
+        raise RuntimeError(f"Network error connecting to GitHub: {str(e)}")
+
     if resp.status_code == 404:
-        raise ValueError(f"GitHub issue not found: {issue_url}")
-    if resp.status_code == 403:
-        raise ValueError("GitHub API rate limit exceeded. Set GITHUB_TOKEN environment variable in .env.local.")
-    if resp.status_code != 200:
-        raise ValueError(f"GitHub API error ({resp.status_code}): {resp.text}")
-    
-    data = resp.json()
+        raise ValueError(f"Repository '{owner}/{repo}' was not found or is private.")
+    elif resp.status_code == 403:
+        rate_limit_reset = resp.headers.get("X-RateLimit-Reset", "unknown")
+        raise RuntimeError(
+            "GitHub API rate limit exceeded. Please configure a GITHUB_TOKEN in .env to increase the rate limit."
+        )
+    elif resp.status_code != 200:
+        raise RuntimeError(f"GitHub API returned error status {resp.status_code}: {resp.text[:150]}")
+
+    repo_info = resp.json()
+
+    # 2. Fetch Languages
+    languages: Dict[str, int] = {}
+    try:
+        lang_resp = requests.get(f"{repo_url}/languages", headers=headers, timeout=8)
+        if lang_resp.status_code == 200:
+            languages = lang_resp.json()
+    except Exception as e:
+        logger.warning(f"Failed to fetch languages for {owner}/{repo}: {e}")
+
+    # Calculate language percentages
+    total_bytes = sum(languages.values())
+    languages_breakdown = []
+    if total_bytes > 0:
+        for name, count in sorted(languages.items(), key=lambda x: x[1], reverse=True):
+            pct = round((count / total_bytes) * 100, 1)
+            languages_breakdown.append({"name": name, "bytes": count, "percentage": pct})
+
+    # 3. Fetch Root Contents (Real Files)
+    root_files: List[Dict[str, Any]] = []
+    try:
+        contents_resp = requests.get(f"{repo_url}/contents", headers=headers, timeout=8)
+        if contents_resp.status_code == 200:
+            for item in contents_resp.json():
+                root_files.append({
+                    "name": item.get("name", ""),
+                    "path": item.get("path", ""),
+                    "type": item.get("type", "file"),
+                    "html_url": item.get("html_url", "")
+                })
+    except Exception as e:
+        logger.warning(f"Failed to fetch root contents for {owner}/{repo}: {e}")
+
+    root_file_names = {f["name"].lower(): f for f in root_files}
+
+    # 4. Check for Key Community & Contribution Files
+    community_files = {
+        "readme": None,
+        "contributing": None,
+        "license": None,
+        "code_of_conduct": None,
+        "issue_templates": False,
+        "workflows": False
+    }
+
+    for item in root_files:
+        name_lower = item["name"].lower()
+        if "readme" in name_lower:
+            community_files["readme"] = item["html_url"]
+        elif "contributing" in name_lower:
+            community_files["contributing"] = item["html_url"]
+        elif "license" in name_lower:
+            community_files["license"] = item["html_url"]
+        elif "code_of_conduct" in name_lower:
+            community_files["code_of_conduct"] = item["html_url"]
+        elif item["name"] == ".github" and item["type"] == "dir":
+            # Check .github contents
+            try:
+                gh_resp = requests.get(f"{repo_url}/contents/.github", headers=headers, timeout=6)
+                if gh_resp.status_code == 200:
+                    gh_files = [f.get("name", "").lower() for f in gh_resp.json()]
+                    if "contributing.md" in gh_files and not community_files["contributing"]:
+                        community_files["contributing"] = f"https://github.com/{owner}/{repo}/blob/{repo_info.get('default_branch', 'main')}/.github/CONTRIBUTING.md"
+                    if any("issue_template" in f for f in gh_files):
+                        community_files["issue_templates"] = True
+                    if "workflows" in gh_files:
+                        community_files["workflows"] = True
+            except Exception:
+                pass
+
+    # 5. Fetch README Content (Excerpt for Grounding)
+    readme_content = ""
+    try:
+        readme_resp = requests.get(
+            f"{repo_url}/readme",
+            headers={"Accept": "application/vnd.github.raw+json", "User-Agent": headers["User-Agent"]},
+            timeout=8
+        )
+        if readme_resp.status_code == 200:
+            # Take first 3000 chars for concise context
+            readme_content = readme_resp.text[:3000]
+    except Exception as e:
+        logger.warning(f"Could not fetch raw README for {owner}/{repo}: {e}")
+
+    # 6. Detect Real Configuration & Manifest Files
+    detected_configs: List[Dict[str, str]] = []
+    manifest_candidates = [
+        # Python
+        ("requirements.txt", "Python Pip dependency list"),
+        ("pyproject.toml", "Python modern build & dependency config (PEP 517/621)"),
+        ("setup.py", "Python setuptools build file"),
+        ("Pipfile", "Pipenv dependency manifest"),
+        ("environment.yml", "Conda environment file"),
+        # JavaScript / TypeScript
+        ("package.json", "Node.js npm/yarn dependency & script manifest"),
+        ("tsconfig.json", "TypeScript compiler configuration"),
+        # Rust
+        ("Cargo.toml", "Rust Cargo package & dependency manifest"),
+        # Go
+        ("go.mod", "Go module and dependency definition"),
+        # Java / Kotlin
+        ("pom.xml", "Maven project configuration"),
+        ("build.gradle", "Gradle build configuration"),
+        ("build.gradle.kts", "Gradle Kotlin DSL configuration"),
+        # Ruby
+        ("Gemfile", "Ruby Bundler dependency file"),
+        # PHP
+        ("composer.json", "PHP Composer dependency manifest"),
+        # Containers & Build
+        ("Dockerfile", "Container build recipe"),
+        ("docker-compose.yml", "Multi-container local development orchestration"),
+        ("docker-compose.yaml", "Multi-container local development orchestration"),
+        ("Makefile", "GNU Make build automation commands")
+    ]
+
+    for filename, description in manifest_candidates:
+        if filename.lower() in root_file_names:
+            file_obj = root_file_names[filename.lower()]
+            detected_configs.append({
+                "filename": filename,
+                "description": description,
+                "html_url": file_obj.get("html_url", f"https://github.com/{owner}/{repo}/blob/{repo_info.get('default_branch', 'main')}/{filename}")
+            })
+
+    # Fetch brief snippet from primary manifest if present
+    manifest_snippet = ""
+    if "package.json" in root_file_names:
+        try:
+            pkg_resp = requests.get(
+                f"{repo_url}/contents/package.json",
+                headers={"Accept": "application/vnd.github.raw+json", "User-Agent": headers["User-Agent"]},
+                timeout=5
+            )
+            if pkg_resp.status_code == 200:
+                pkg_data = json.loads(pkg_resp.text)
+                scripts = pkg_data.get("scripts", {})
+                deps = list(pkg_data.get("dependencies", {}).keys())[:8]
+                dev_deps = list(pkg_data.get("devDependencies", {}).keys())[:8]
+                manifest_snippet = f"package.json scripts: {json.dumps(scripts)}\nDependencies: {', '.join(deps)}\nDevDependencies: {', '.join(dev_deps)}"
+        except Exception:
+            pass
+    elif "requirements.txt" in root_file_names:
+        try:
+            req_resp = requests.get(
+                f"{repo_url}/contents/requirements.txt",
+                headers={"Accept": "application/vnd.github.raw+json", "User-Agent": headers["User-Agent"]},
+                timeout=5
+            )
+            if req_resp.status_code == 200:
+                lines = [l.strip() for l in req_resp.text.splitlines() if l.strip() and not l.startswith("#")][:15]
+                manifest_snippet = f"requirements.txt packages: {', '.join(lines)}"
+        except Exception:
+            pass
+
     return {
         "owner": owner,
         "repo": repo,
-        "number": int(issue_number),
-        "title": data.get("title", ""),
-        "body": data.get("body", "") or "",
-        "html_url": data.get("html_url", issue_url)
+        "full_name": repo_info.get("full_name", f"{owner}/{repo}"),
+        "html_url": repo_info.get("html_url", f"https://github.com/{owner}/{repo}"),
+        "description": repo_info.get("description") or "No description provided by repository maintainers.",
+        "stars": repo_info.get("stargazers_count", 0),
+        "forks": repo_info.get("forks_count", 0),
+        "open_issues": repo_info.get("open_issues_count", 0),
+        "default_branch": repo_info.get("default_branch", "main"),
+        "license": repo_info.get("license", {}).get("name") if repo_info.get("license") else "No license specified",
+        "license_spdx": repo_info.get("license", {}).get("spdx_id") if repo_info.get("license") else None,
+        "topics": repo_info.get("topics", []),
+        "homepage": repo_info.get("homepage"),
+        "created_at": repo_info.get("created_at"),
+        "updated_at": repo_info.get("updated_at"),
+        "languages": languages_breakdown,
+        "root_files": root_files,
+        "community_files": community_files,
+        "detected_configs": detected_configs,
+        "readme_excerpt": readme_content,
+        "manifest_snippet": manifest_snippet
     }
 
+
 # ==============================================================================
-# GEMINI API CALL FOR GEMMA 4 (Gemma 4 Prize Entry)
-# Model verified: gemma-4-31b-it (Google's open-weight instruction-tuned model)
+# HEURISTIC FALLBACK (RULE-BASED DERIVATION FROM REAL FILES)
+# Used when Gemini API key is missing or encounters quota/auth errors,
+# ensuring the app is always functional and 100% grounded in verified facts.
 # ==============================================================================
-def call_gemma_gemini_api(api_key: str, model_name: str, prompt: str) -> str:
+def generate_heuristic_guide(facts: Dict[str, Any], reason: str = "") -> Dict[str, Any]:
     """
-    Invokes the Google Gemini API using Gemma 4 open-weight model.
-    Tries the official Google GenAI SDK first, falling back to direct HTTPS REST.
+    Generates a deterministic contribution guide strictly from the detected GitHub facts.
+    Clearly marked as rule-based synthesis.
     """
-    try:
-        from google import genai
-        client = genai.Client(api_key=api_key)
-        response = client.models.generate_content(
-            model=model_name,
-            contents=prompt
-        )
-        return response.text
-    except ImportError:
-        # Fallback to direct Gemini REST API if google-genai package is not installed yet
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent"
-        headers = {"Content-Type": "application/json"}
-        payload = {
-            "contents": [
-                {"parts": [{"text": prompt}]}
-            ]
-        }
-        res = requests.post(url, headers=headers, params={"key": api_key}, json=payload, timeout=45)
-        if res.status_code != 200:
-            raise Exception(f"Gemini API error ({res.status_code}): {res.text}")
-        data = res.json()
-        return data["candidates"][0]["content"]["parts"][0]["text"]
+    owner = facts["owner"]
+    repo = facts["repo"]
+    default_branch = facts["default_branch"]
+    configs = [c["filename"].lower() for c in facts["detected_configs"]]
+    root_names = [f["name"].lower() for f in facts["root_files"]]
 
-# ==============================================================================
-# OLLAMA API CALL (Local Open-Weight Model Support)
-# ==============================================================================
-def call_gemma_ollama_api(host: str, model_name: str, prompt: str) -> str:
-    """
-    Calls local or remote Ollama instance running Gemma.
-    """
-    endpoint = f"{host.rstrip('/')}/api/generate"
-    payload = {
-        "model": model_name,
-        "prompt": prompt,
-        "stream": False
-    }
-    res = requests.post(endpoint, json=payload, timeout=60)
-    if res.status_code != 200:
-        raise Exception(f"Ollama API error ({res.status_code}): {res.text}")
-    return res.json().get("response", "")
+    # Important files analysis
+    important_files = []
+    for f in facts["root_files"]:
+        name = f["name"]
+        name_l = name.lower()
+        if "readme" in name_l:
+            important_files.append({"path": name, "role": "Project documentation & getting started overview", "importance": "Essential"})
+        elif "contributing" in name_l:
+            important_files.append({"path": name, "role": "Maintainer contribution guidelines and code style", "importance": "Essential"})
+        elif "license" in name_l:
+            important_files.append({"path": name, "role": "Open-source legal permissions and usage rights", "importance": "Reference"})
+        elif name_l in ["package.json", "requirements.txt", "pyproject.toml", "cargo.toml", "go.mod", "pom.xml", "build.gradle"]:
+            important_files.append({"path": name, "role": "Primary project dependency and build configuration", "importance": "Essential"})
+        elif name_l in ["dockerfile", "docker-compose.yml"]:
+            important_files.append({"path": name, "role": "Containerization and local development runtime", "importance": "Helpful"})
+        elif name_l in ["makefile"]:
+            important_files.append({"path": name, "role": "Automated build and test shortcuts", "importance": "Helpful"})
+        elif name_l in ["tests", "test", "spec", "src", "lib", "app", "docs"]:
+            important_files.append({"path": name, "role": f"Core directory for {name}", "importance": "High"})
 
-# ==============================================================================
-# GEMMA 4 PROMPT & REPRODUCTION EXTRACTION
-# ==============================================================================
-PROMPT_TEMPLATE = """You are ReproBot, an AI specialized in analyzing GitHub bug reports and generating standalone, minimal reproduction scripts.
+    # Setup instructions derived from actual configs
+    setup_steps = [
+        {"title": "1. Fork & Clone", "command": f"git clone https://github.com/{owner}/{repo}.git\ncd {repo}", "notes": "Fork the repository on GitHub first, then clone your fork."}
+    ]
 
-Analyze the following GitHub issue:
-Title: {title}
-URL: {url}
-Body:
-{body}
-
-Instructions:
-1. Determine if this issue contains sufficient information or code to reproduce the bug.
-2. If there is NO code, no stack trace, and no clear way to reproduce it, reply with status "NO CODE FOUND" and leave code empty.
-3. If it CAN be reproduced, extract or write a minimal, self-contained reproduction script in Python (preferred) or JavaScript (Node.js).
-4. The script should only use standard library or common packages if possible, and should reproduce the exact error or unexpected behavior mentioned.
-5. Identify the expected error/exception name or behavior that confirms reproduction.
-
-Respond with ONLY valid JSON with this exact schema:
-{{
-  "status": "REPRODUCED" | "NOT_REPRODUCED" | "UNCLEAR" | "NO CODE FOUND",
-  "language": "python" | "javascript" | "none",
-  "code": "<standalone runnable script code or empty string>",
-  "expected_error": "<expected error message or exception name, e.g. KeyError or TypeError>",
-  "summary": "<one sentence summary of the bug>"
-}}
-"""
-
-def extract_reproduction(issue: dict, provider: str = "gemini", model_name: str = None) -> dict:
-    prompt = PROMPT_TEMPLATE.format(
-        title=issue.get("title", ""),
-        url=issue.get("html_url", ""),
-        body=issue.get("body", "")[:4000]
-    )
-    
-    try:
-        if provider == "ollama":
-            host = os.environ.get("OLLAMA_HOST", DEFAULT_OLLAMA_HOST)
-            model = model_name or DEFAULT_OLLAMA_MODEL
-            raw_text = call_gemma_ollama_api(host, model, prompt)
-        else:
-            api_key = os.environ.get("GEMINI_API_KEY")
-            if not api_key:
-                raise ValueError("GEMINI_API_KEY environment variable is not set. Add it to .env.local")
-            model = model_name or DEFAULT_GEMMA_MODEL
-            raw_text = call_gemma_gemini_api(api_key, model, prompt)
-        
-        # Clean JSON markdown fences
-        cleaned = re.sub(r"```json|```", "", raw_text).strip()
-        # Find JSON block if wrapped
-        json_match = re.search(r"\{.*\}", cleaned, re.DOTALL)
-        if json_match:
-            cleaned = json_match.group(0)
-        return json.loads(cleaned)
-    except Exception as api_err:
-        # If model invocation encounters an issue (e.g. 401 UNAUTHENTICATED or network error),
-        # extract standalone code snippet directly from issue markdown as a resilient fallback
-        body_text = issue.get("body", "")
-        code_match = re.search(r"```(?:python|py)\n(.*?)```", body_text, re.DOTALL)
-        if code_match:
-            return {
-                "status": "REPRODUCED",
-                "language": "python",
-                "code": code_match.group(1).strip(),
-                "expected_error": "Exception",
-                "summary": f"Extracted reproduction snippet directly from issue body (Note on Gemma API: {str(api_err)[:150]})",
-                "api_error": str(api_err)
-            }
-        raise
-
-# ==============================================================================
-# SECURE DOCKER EXECUTION SANDBOX
-# Strict isolation:
-# - --network none
-# - --memory 256m
-# - --cpus 1
-# - 30s timeout
-# - read-only volume mount (:ro)
-# - Host execution is NEVER allowed
-# ==============================================================================
-def is_docker_running() -> bool:
-    try:
-        r = subprocess.run(["docker", "info"], capture_output=True, text=True, timeout=5)
-        return r.returncode == 0
-    except Exception:
-        return False
-
-def execute_in_docker(code: str, language: str) -> dict:
-    if not is_docker_running():
-        return {
-            "executed": False,
-            "error": "Docker is not currently running. ReproBot strictly isolates execution inside Docker (--network none, --memory 256m) and NEVER executes untrusted code on the host machine. Please start Docker Desktop.",
-            "stdout": "",
-            "stderr": "Docker daemon unavailable. Sandbox execution refused on host machine.",
-            "exit_code": -1,
-            "duration": 0.0,
-            "timed_out": False
-        }
-    
-    ext = ".py" if language == "python" else ".js"
-    filename = f"reproduce{ext}"
-    image = "python:3.11-slim" if language == "python" else "node:20-slim"
-    runner = ["python", f"/sandbox/{filename}"] if language == "python" else ["node", f"/sandbox/{filename}"]
-
-    with tempfile.TemporaryDirectory() as temp_dir:
-        file_path = os.path.join(temp_dir, filename)
-        with open(file_path, "w", encoding="utf-8") as f:
-            f.write(code)
-
-        # Windows-compatible path format for Docker volume mount
-        mount_path = os.path.abspath(temp_dir).replace("\\", "/")
-        cmd = [
-            "docker", "run", "--rm",
-            "--network", "none",
-            "--memory", "256m",
-            "--cpus", "1",
-            "-v", f"{mount_path}:/sandbox:ro",
-            image
-        ] + runner
-
-        start_time = time.time()
-        try:
-            res = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
-            duration = round(time.time() - start_time, 2)
-            return {
-                "executed": True,
-                "stdout": res.stdout,
-                "stderr": res.stderr,
-                "exit_code": res.returncode,
-                "duration": duration,
-                "timed_out": False
-            }
-        except subprocess.TimeoutExpired as te:
-            duration = round(time.time() - start_time, 2)
-            stdout = te.stdout.decode('utf-8', errors='replace') if isinstance(te.stdout, bytes) else (te.stdout or "")
-            stderr = te.stderr.decode('utf-8', errors='replace') if isinstance(te.stderr, bytes) else (te.stderr or "")
-            return {
-                "executed": True,
-                "stdout": stdout,
-                "stderr": (stderr + "\nExecution timed out after 30 seconds (enforced sandbox limit).").strip(),
-                "exit_code": 124,
-                "duration": duration,
-                "timed_out": True
-            }
-        except Exception as e:
-            return {
-                "executed": False,
-                "error": str(e),
-                "stdout": "",
-                "stderr": f"Docker run error: {str(e)}",
-                "exit_code": -1,
-                "duration": 0.0,
-                "timed_out": False
-            }
-
-# ==============================================================================
-# VERDICT CLASSIFICATION LOGIC
-# REPRODUCED, NOT_REPRODUCED, UNCLEAR, or NO CODE FOUND
-# ==============================================================================
-def determine_verdict(gemma_analysis: dict, docker_result: dict) -> str:
-    code = (gemma_analysis.get("code") or "").strip()
-    status = (gemma_analysis.get("status") or "").upper()
-    lang = (gemma_analysis.get("language") or "").lower()
-
-    if not code or status == "NO CODE FOUND" or lang == "none":
-        return "NO CODE FOUND"
-
-    if not docker_result or not docker_result.get("executed"):
-        return "UNCLEAR"
-
-    if docker_result.get("timed_out"):
-        return "UNCLEAR"
-
-    exit_code = docker_result.get("exit_code", 0)
-    stdout = docker_result.get("stdout", "")
-    stderr = docker_result.get("stderr", "")
-    combined = (stdout + "\n" + stderr).lower()
-    expected_error = (gemma_analysis.get("expected_error") or "").lower().strip()
-
-    if exit_code != 0:
-        # Missing module/dependency in minimal container -> UNCLEAR
-        if "modulenotfounderror" in combined or "cannot find module" in combined:
-            return "UNCLEAR"
-        # Matched expected error
-        if expected_error and expected_error in combined:
-            return "REPRODUCED"
-        # General exception or failure raised
-        if any(err in combined for err in ["error", "exception", "traceback", "assertionerror"]):
-            return "REPRODUCED"
-        return "UNCLEAR"
+    if "requirements.txt" in configs or "pyproject.toml" in configs:
+        setup_steps.append({
+            "title": "2. Create Python Environment",
+            "command": "python -m venv .venv\n# On Windows:\n.venv\\Scripts\\activate\n# On macOS/Linux:\nsource .venv/bin/activate",
+            "notes": "Isolate project dependencies in a virtual environment."
+        })
+        if "requirements.txt" in configs:
+            setup_steps.append({
+                "title": "3. Install Dependencies",
+                "command": "pip install -r requirements.txt",
+                "notes": "Installs packages specified in the verified requirements.txt."
+            })
+        elif "pyproject.toml" in configs:
+            setup_steps.append({
+                "title": "3. Install Dependencies",
+                "command": "pip install -e .",
+                "notes": "Installs the package in editable mode as defined in pyproject.toml."
+            })
+        setup_steps.append({
+            "title": "4. Run Test Suite",
+            "command": "pytest",
+            "notes": "Verify your local environment passes all existing test cases."
+        })
+    elif "package.json" in configs:
+        setup_steps.append({
+            "title": "2. Install Node Dependencies",
+            "command": "npm install",
+            "notes": "Installs dependencies specified in package.json."
+        })
+        setup_steps.append({
+            "title": "3. Run Development / Tests",
+            "command": "npm test",
+            "notes": "Runs the test script defined in package.json."
+        })
+    elif "cargo.toml" in configs:
+        setup_steps.append({
+            "title": "2. Build & Test Rust Project",
+            "command": "cargo build\ncargo test",
+            "notes": "Compiles and executes test suite via Cargo."
+        })
+    elif "go.mod" in configs:
+        setup_steps.append({
+            "title": "2. Download Go Modules & Test",
+            "command": "go mod download\ngo test ./...",
+            "notes": "Downloads dependencies and runs Go tests."
+        })
     else:
-        # Script exited cleanly with code 0 without triggering the bug
-        return "NOT_REPRODUCED"
-
-# ==============================================================================
-# REPRODUCTION ENDPOINT
-# ==============================================================================
-@app.post("/reproduce")
-@app.post("/analyze")
-def reproduce():
-    try:
-        data = request.get_json(silent=True) or {}
-        issue_url = data.get("url") or data.get("issue_url")
-        provider = data.get("provider", "gemini")
-        model_name = data.get("model") or (DEFAULT_OLLAMA_MODEL if provider == "ollama" else DEFAULT_GEMMA_MODEL)
-        is_mock = bool(data.get("mock", False))
-
-        if not issue_url:
-            return jsonify(error="Please provide a GitHub issue URL"), 400
-
-        # Handle Mock/Simulation demo
-        if is_mock or "demo/sample-repo" in issue_url:
-            issue = {
-                "owner": "demo",
-                "repo": "sample-repo",
-                "number": 42,
-                "title": "KeyError when parsing malformed response dictionary",
-                "body": "When calling parse_response() with an empty payload, it raises KeyError: 'items' instead of returning an empty list.",
-                "html_url": issue_url
-            }
-            gemma_result = {
-                "status": "REPRODUCED",
-                "language": "python",
-                "code": "payload = {}\n# Reproducing KeyError when 'items' key is missing\ntry:\n    items = payload['items']\n    print('Success:', items)\nexcept KeyError as e:\n    import sys\n    sys.stderr.write(f'KeyError: {e}\\n')\n    sys.exit(1)",
-                "expected_error": "KeyError",
-                "summary": "Demonstrates reproduction of KeyError: 'items' when parsing dictionary"
-            }
-        else:
-            # 1. Fetch GitHub Issue
-            issue = fetch_github_issue(issue_url)
-
-            # 2. Extract reproduction script using Gemma 4
-            gemma_result = extract_reproduction(issue, provider=provider, model_name=model_name)
-
-        code = (gemma_result.get("code") or "").strip()
-        lang = (gemma_result.get("language") or "python").lower()
-
-        # 3. If code exists, execute in isolated Docker sandbox
-        if code and lang in ["python", "javascript"]:
-            docker_result = execute_in_docker(code, lang)
-        else:
-            docker_result = {
-                "executed": False,
-                "stdout": "",
-                "stderr": "No reproduction code found in issue description.",
-                "exit_code": 0,
-                "duration": 0.0,
-                "timed_out": False
-            }
-
-        # 4. Classify outcome
-        verdict = determine_verdict(gemma_result, docker_result)
-
-        return jsonify({
-            "success": True,
-            "is_mock": is_mock or ("demo/sample-repo" in issue_url),
-            "verdict": verdict,
-            "issue": issue,
-            "language": lang,
-            "code": code,
-            "expected_error": gemma_result.get("expected_error"),
-            "summary": gemma_result.get("summary"),
-            "docker": docker_result
+        setup_steps.append({
+            "title": "2. Check Documentation",
+            "command": "# Refer to README.md in the repository",
+            "notes": "No standard manifest detected in repository root. Consult README for custom setup."
         })
 
+    # Suggested contribution areas grounded in repository evidence
+    has_contributing = bool(facts["community_files"].get("contributing"))
+    has_tests = any("test" in f["name"].lower() for f in facts["root_files"])
+    has_docs = any("doc" in f["name"].lower() for f in facts["root_files"])
+
+    suggestions = [
+        {
+            "area": "Documentation & Setup Clarity",
+            "difficulty": "Beginner",
+            "description": "Follow the setup guide yourself and verify that installation instructions in README.md are clear and reproducible.",
+            "evidence": f"Repository has {len(facts['detected_configs'])} detected config file(s) and {facts['stars']} stars."
+        },
+        {
+            "area": "Add or Improve Test Coverage",
+            "difficulty": "Intermediate",
+            "description": "Check existing test coverage and add unit tests for edge cases or untested helper functions.",
+            "evidence": f"Root directory contains {', '.join([f['name'] for f in facts['root_files'] if 'test' in f['name'].lower()]) or 'standard project directories'}."
+        },
+        {
+            "area": "Triage Open Issues & Reproduce Bugs",
+            "difficulty": "Beginner to Intermediate",
+            "description": "Browse open issues on GitHub, help reproduce reported bugs, or clarify steps with reporters.",
+            "evidence": f"Repository currently has {facts['open_issues']} open issue(s)."
+        }
+    ]
+
+    if not has_contributing:
+        suggestions.append({
+            "area": "Suggest a CONTRIBUTING.md Guide",
+            "difficulty": "Beginner",
+            "description": "The repository does not have a dedicated CONTRIBUTING.md in its root. Proposing a contribution guide helps future developers.",
+            "evidence": "No CONTRIBUTING.md was detected in repository root or .github folder."
+        })
+
+    purpose = facts["description"]
+    if facts.get("readme_excerpt"):
+        # Strip HTML tags and markdown badge links from README excerpt for a clean summary
+        cleaned_readme = re.sub(r"<[^>]+>", "", facts["readme_excerpt"])
+        cleaned_readme = re.sub(r"\[!\[.*?\]\(.*?\)\]\(.*?\)", "", cleaned_readme)
+        cleaned_readme = re.sub(r"!\[.*?\]\(.*?\)", "", cleaned_readme)
+        cleaned_readme = re.sub(r"\[(.*?)\]\(.*?\)", r"\1", cleaned_readme)
+        paragraphs = [p.strip() for p in cleaned_readme.split("\n\n") if p.strip() and not p.strip().startswith("#") and len(p.strip()) > 30]
+        if paragraphs:
+            purpose += " " + paragraphs[0][:300]
+
+    return {
+        "project_purpose": purpose,
+        "important_files": important_files,
+        "setup_steps": setup_steps,
+        "suggested_contributions": suggestions,
+        "checklist": [
+            {"step": "Star and fork the repository on GitHub", "done": False},
+            {"step": "Clone your fork locally and configure git remotes", "done": False},
+            {"step": "Read CONTRIBUTING.md and Code of Conduct if available", "done": False},
+            {"step": "Create an isolated feature branch (e.g., git checkout -b fix/issue-name)", "done": False},
+            {"step": "Set up the local environment and ensure tests pass before changing code", "done": False},
+            {"step": "Make minimal, well-documented changes addressing a single concern", "done": False},
+            {"step": "Write new unit tests covering your change", "done": False},
+            {"step": "Push your branch and submit a clear Pull Request with details", "done": False}
+        ],
+        "is_ai_generated": False,
+        "model_used": "Heuristic Rule Engine (Gemma 4 fallback)",
+        "ai_status_message": reason or "Generated using rule-based synthesis from verified repository files."
+    }
+
+
+# ==============================================================================
+# GEMINI API CALL WITH GEMMA 4 (EXPLICIT, VISIBLE IN SOURCE CODE)
+# ==============================================================================
+def call_gemma_model(facts: Dict[str, Any], api_key: Optional[str] = None, model_name: Optional[str] = None) -> Dict[str, Any]:
+    """
+    Calls the Google Gemini API using a verified Gemma 4 model identifier.
+    Uses google.genai.Client to execute the prompt.
+    Includes strict grounding rules and structured JSON response parsing.
+    """
+    key = api_key or os.environ.get("GEMINI_API_KEY")
+    target_model = model_name or os.environ.get("GEMMA_MODEL", DEFAULT_GEMMA_MODEL)
+
+    if not key or not key.strip() or key.strip() == "your_gemini_api_key_here":
+        logger.info("GEMINI_API_KEY is not set. Using heuristic rule engine fallback.")
+        return generate_heuristic_guide(
+            facts,
+            reason="Gemini API key is not configured. Displaying structured analysis from verified repository files."
+        )
+
+    # Prepare grounding context strictly from facts
+    file_list = [f"{f['name']} ({f['type']})" for f in facts["root_files"]]
+    config_list = [f"{c['filename']} - {c['description']}" for c in facts["detected_configs"]]
+    languages_str = ", ".join([f"{l['name']} ({l['percentage']}%)" for l in facts["languages"]]) or "None specified"
+
+    prompt = f"""You are RepoCompass, an AI open-source onboarding mentor powered by Gemma 4.
+Analyze the following real repository data and synthesize an accurate, beginner-friendly contribution guide.
+
+=== REPOSITORY FACTS (VERIFIED GROUND TRUTH) ===
+Repository: {facts['full_name']}
+GitHub URL: {facts['html_url']}
+Description: {facts['description']}
+Stars: {facts['stars']} | Forks: {facts['forks']} | Open Issues: {facts['open_issues']}
+License: {facts['license']}
+Default Branch: {facts['default_branch']}
+Languages: {languages_str}
+
+Detected Root Files:
+{json.dumps(file_list, indent=2)}
+
+Detected Configuration & Manifest Files:
+{json.dumps(config_list, indent=2)}
+
+Configuration Snippet:
+{facts.get('manifest_snippet', 'None available')}
+
+README Excerpt:
+{facts.get('readme_excerpt', 'No README provided')[:1500]}
+================================================
+
+=== INSTRUCTIONS & GROUNDING RULES ===
+1. STRICT GROUNDING: Rely ONLY on the verified facts above. Do NOT invent files, commands, libraries, or project features that are not substantiated by the provided data.
+2. DISTINGUISH FACTS FROM INFERENCES: Clearly explain what the repository does based on its README and code manifests.
+3. IMPORTANT FILES: Select 4 to 8 files from the DETECTED ROOT FILES and explain their exact role for a newcomer.
+4. SETUP INSTRUCTIONS: Provide realistic setup commands based ONLY on the detected config files (e.g. if package.json is present, use npm/yarn; if requirements.txt or pyproject.toml is present, use Python venv and pip).
+5. BEGINNER CONTRIBUTIONS: Suggest 3 to 5 realistic contribution areas for beginners (e.g. documentation, test coverage, issue reproduction, examples) citing the actual evidence (e.g. "Root contains X but lacks Y"). Explicitly indicate that these are exploratory AI suggestions, not verified open GitHub issues.
+6. FORMAT: You MUST return a single valid JSON object with the exact keys:
+{{
+  "project_purpose": "Clear 2-3 paragraph explanation of what the project does and who it is for in plain English.",
+  "important_files": [
+    {{"path": "filename", "role": "concise explanation of role", "importance": "Essential" | "High" | "Helpful"}}
+  ],
+  "setup_steps": [
+    {{"title": "Step Name", "command": "shell commands", "notes": "helpful tips"}}
+  ],
+  "suggested_contributions": [
+    {{"area": "Title", "difficulty": "Beginner" | "Intermediate", "description": "detailed description", "evidence": "evidence from repo"}}
+  ],
+  "checklist": [
+    {{"step": "Step description", "done": false}}
+  ]
+}}
+Do NOT include markdown formatting outside the JSON. Return raw JSON.
+"""
+
+    try:
+        # VISIBLE GOOGLE GEMINI API CALL WITH GEMMA 4
+        from google import genai
+        from google.genai import types
+
+        logger.info(f"Invoking Gemini API with model: {target_model}")
+        client = genai.Client(api_key=key.strip())
+
+        response = client.models.generate_content(
+            model=target_model,
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                temperature=0.2,
+                top_p=0.9,
+                max_output_tokens=2500
+            )
+        )
+
+        raw_text = response.text.strip()
+        logger.info(f"Gemini API returned response length: {len(raw_text)}")
+
+        # Strip markdown code blocks if wrapped
+        clean_text = raw_text
+        if clean_text.startswith("```json"):
+            clean_text = clean_text[7:]
+        elif clean_text.startswith("```"):
+            clean_text = clean_text[3:]
+        if clean_text.endswith("```"):
+            clean_text = clean_text[:-3]
+        clean_text = clean_text.strip()
+
+        parsed_data = json.loads(clean_text)
+
+        # Validate required keys
+        required_keys = ["project_purpose", "important_files", "setup_steps", "suggested_contributions", "checklist"]
+        for rk in required_keys:
+            if rk not in parsed_data:
+                raise ValueError(f"Missing expected key '{rk}' in Gemma output.")
+
+        parsed_data["is_ai_generated"] = True
+        parsed_data["model_used"] = target_model
+        parsed_data["ai_status_message"] = f"Synthesized by Gemma 4 ({target_model}) via Google Gemini API."
+        return parsed_data
+
     except Exception as e:
-        return jsonify(error=str(e)), 500
+        logger.error(f"Gemma 4 API call failed: {str(e)}")
+        # Provide helpful graceful degradation
+        err_msg = str(e)
+        if "401" in err_msg or "UNAUTHENTICATED" in err_msg:
+            reason = "Gemini API Key is invalid or expired. Switched to rule-based analysis."
+        elif "429" in err_msg or "RESOURCE_EXHAUSTED" in err_msg:
+            reason = "Gemini API rate limit reached. Switched to rule-based analysis."
+        elif "not found" in err_msg.lower() or "404" in err_msg:
+            reason = f"Model '{target_model}' unavailable. Switched to rule-based analysis."
+        else:
+            reason = f"Gemini API request failed: {err_msg[:120]}. Switched to rule-based analysis."
+
+        return generate_heuristic_guide(facts, reason=reason)
+
+
+# ==============================================================================
+# FLASK WEB APPLICATION ROUTES
+# ==============================================================================
+@app.route("/")
+def index():
+    """Renders the main RepoCompass developer dashboard."""
+    return render_template("index.html")
+
+
+@app.route("/api/analyze", methods=["POST"])
+def analyze_repository():
+    """
+    Core API endpoint.
+    Accepts: { "url": "https://github.com/owner/repo", "api_key": "(optional)" }
+    Returns: Complete repository facts + Gemma 4 generated guide.
+    """
+    data = request.get_json(force=True, silent=True) or {}
+    raw_url = data.get("url") or data.get("repo_url") or ""
+    custom_api_key = data.get("api_key") or ""
+    custom_model = data.get("model") or ""
+
+    if not raw_url:
+        return jsonify({"error": "Please provide a public GitHub repository URL."}), 400
+
+    # 1. Validate & Parse GitHub URL
+    try:
+        owner, repo = parse_github_url(raw_url)
+    except ValueError as ve:
+        return jsonify({"error": str(ve)}), 400
+
+    # 2. Fetch Facts from GitHub REST API
+    try:
+        facts = fetch_github_repo_facts(owner, repo)
+    except ValueError as ve:
+        return jsonify({"error": str(ve)}), 404
+    except RuntimeError as re_err:
+        return jsonify({"error": str(re_err)}), 502
+    except Exception as e:
+        logger.exception(f"Unexpected error fetching repo facts: {e}")
+        return jsonify({"error": f"Failed to retrieve repository data: {str(e)}"}), 500
+
+    # 3. Generate Guide via Gemma 4 (or Fallback)
+    guide = call_gemma_model(
+        facts,
+        api_key=custom_api_key if custom_api_key.strip() else None,
+        model_name=custom_model if custom_model.strip() else None
+    )
+
+    # 4. Construct complete response
+    return jsonify({
+        "success": True,
+        "facts": facts,
+        "guide": guide,
+        "model_id": guide.get("model_used", DEFAULT_GEMMA_MODEL)
+    })
+
+
+@app.route("/api/health", methods=["GET"])
+def health_check():
+    """Returns application status, verified models, and configuration state."""
+    has_gemini = bool(os.environ.get("GEMINI_API_KEY") and os.environ.get("GEMINI_API_KEY") != "your_gemini_api_key_here")
+    has_github = bool(os.environ.get("GITHUB_TOKEN") and os.environ.get("GITHUB_TOKEN") != "your_github_personal_access_token_here")
+
+    return jsonify({
+        "status": "healthy",
+        "service": "RepoCompass",
+        "configured_model": DEFAULT_GEMMA_MODEL,
+        "verified_models": ["gemma-4-31b-it", "gemma-4-26b-a4b-it"],
+        "gemini_api_configured": has_gemini,
+        "github_token_configured": has_github
+    })
+
+
+@app.route("/api/sample", methods=["GET"])
+def get_sample():
+    """Returns sample pre-generated data for instant testing or offline demo."""
+    sample_facts = {
+        "owner": "pallets",
+        "repo": "flask",
+        "full_name": "pallets/flask",
+        "html_url": "https://github.com/pallets/flask",
+        "description": "The Python micro framework for building web applications.",
+        "stars": 69200,
+        "forks": 16100,
+        "open_issues": 34,
+        "default_branch": "main",
+        "license": "BSD 3-Clause 'New' or 'Revised' License",
+        "license_spdx": "BSD-3-Clause",
+        "topics": ["python", "flask", "wsid", "microframework", "web-framework"],
+        "homepage": "https://palletsprojects.com/p/flask",
+        "created_at": "2010-04-06T11:11:59Z",
+        "updated_at": "2026-10-25T10:00:00Z",
+        "languages": [
+            {"name": "Python", "bytes": 742000, "percentage": 98.4},
+            {"name": "HTML", "bytes": 12000, "percentage": 1.6}
+        ],
+        "root_files": [
+            {"name": "pyproject.toml", "path": "pyproject.toml", "type": "file", "html_url": "https://github.com/pallets/flask/blob/main/pyproject.toml"},
+            {"name": "requirements", "path": "requirements", "type": "dir", "html_url": "https://github.com/pallets/flask/tree/main/requirements"},
+            {"name": "src", "path": "src", "type": "dir", "html_url": "https://github.com/pallets/flask/tree/main/src"},
+            {"name": "tests", "path": "tests", "type": "dir", "html_url": "https://github.com/pallets/flask/tree/main/tests"},
+            {"name": "docs", "path": "docs", "type": "dir", "html_url": "https://github.com/pallets/flask/tree/main/docs"},
+            {"name": "README.md", "path": "README.md", "type": "file", "html_url": "https://github.com/pallets/flask/blob/main/README.md"},
+            {"name": "LICENSE.txt", "path": "LICENSE.txt", "type": "file", "html_url": "https://github.com/pallets/flask/blob/main/LICENSE.txt"}
+        ],
+        "community_files": {
+            "readme": "https://github.com/pallets/flask/blob/main/README.md",
+            "contributing": "https://github.com/pallets/flask/blob/main/CONTRIBUTING.rst",
+            "license": "https://github.com/pallets/flask/blob/main/LICENSE.txt",
+            "code_of_conduct": None,
+            "issue_templates": True,
+            "workflows": True
+        },
+        "detected_configs": [
+            {"filename": "pyproject.toml", "description": "Python modern build & dependency config (PEP 517/621)", "html_url": "https://github.com/pallets/flask/blob/main/pyproject.toml"}
+        ]
+    }
+    sample_guide = generate_heuristic_guide(sample_facts, reason="Sample demonstration mode for Flask.")
+    sample_guide["project_purpose"] = (
+        "Flask is a lightweight WSGI web application framework designed to make getting started quick and easy, "
+        "with the ability to scale up to complex applications. It provides core web primitives (routing, request handling, "
+        "templating via Jinja) while leaving extensions and architectural choices to the developer."
+    )
+    return jsonify({
+        "success": True,
+        "facts": sample_facts,
+        "guide": sample_guide,
+        "model_id": DEFAULT_GEMMA_MODEL
+    })
+
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+    port = int(os.environ.get("PORT", 5000))
+    debug = os.environ.get("FLASK_DEBUG", "false").lower() == "true"
+    print(f"RepoCompass running on http://127.0.0.1:{port}")
+    app.run(host="0.0.0.0", port=port, debug=debug)
