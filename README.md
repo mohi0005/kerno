@@ -6,7 +6,7 @@
 [![Framework: Flask](https://img.shields.io/badge/Framework-Flask%203.x-black.svg)](https://flask.palletsprojects.com/)
 [![AI Model: Gemma 4](https://img.shields.io/badge/AI%20Model-Gemma%204%20(gemma--4--31b--it)-indigo.svg)](https://ai.google.dev/gemma)
 
-> **Kerno** is an AI-powered open-source contribution guide that helps developers understand unfamiliar GitHub repositories quickly. Users paste a public repository URL to receive a project overview, explanations of important files, setup guidance based on repository contents, and AI-generated suggestions for beginner-friendly contribution areas.
+> **Kerno** is an AI-powered open-source contribution guide that helps developers understand unfamiliar GitHub repositories quickly. Users paste a public repository URL to receive a project overview, explanations of important files, setup guidance based on repository contents, and A   I-generated suggestions for beginner-friendly contribution areas.
 >
 > The application uses the GitHub REST API to retrieve repository information and Gemma to explain the project in simple language. It is built with Python, Flask, HTML, CSS, and JavaScript, with the goal of making open-source development more accessible to students and new contributors.
 >
