@@ -4,9 +4,13 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python: 3.10+](https://img.shields.io/badge/Python-3.10%2B-brightgreen.svg)](https://python.org)
 [![Framework: Flask](https://img.shields.io/badge/Framework-Flask%203.x-black.svg)](https://flask.palletsprojects.com/)
-[![AI Model: Gemma 4](https://img.shields.io/badge/AI%20Model-Gemma%204%20(31B%20IT)-indigo.svg)](https://ai.google.dev/gemma)
+[![AI Model: Gemma 4](https://img.shields.io/badge/AI%20Model-Gemma%204%20(gemma--4--31b--it)-indigo.svg)](https://ai.google.dev/gemma)
 
-RepoCompass is an intelligent developer onboarding dashboard designed to eliminate the steep learning curve of contributing to open-source software. By analyzing real repository metadata, file trees, and build configurations from GitHub, RepoCompass uses Google's open-weight **Gemma 4** model via the Google Gemini API to synthesize an accessible, grounded, and actionable contribution guide for newcomers.
+> **RepoCompass** is an AI-powered open-source contribution guide that helps developers understand unfamiliar GitHub repositories quickly. Users paste a public repository URL to receive a project overview, explanations of important files, setup guidance based on repository contents, and AI-generated suggestions for beginner-friendly contribution areas.
+>
+> The application uses the GitHub REST API to retrieve repository information and Gemma to explain the project in simple language. It is built with Python, Flask, HTML, CSS, and JavaScript, with the goal of making open-source development more accessible to students and new contributors.
+>
+> **Exact Gemma Model Identifier:** `gemma-4-31b-it` (Google Gemma 4 31B Instruction-Tuned model via Google Gemini API).
 
 ---
 
