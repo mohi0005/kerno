@@ -115,7 +115,7 @@ def test_heuristic_guide_node_repo():
 def test_index_route(client):
     response = client.get("/")
     assert response.status_code == 200
-    assert b"RepoCompass" in response.data
+    assert b"Kerno" in response.data
     assert b"gemma-4-31b-it" in response.data
 
 

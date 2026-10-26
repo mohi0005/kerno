@@ -15,7 +15,7 @@ load_dotenv(".env")
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
-logger = logging.getLogger("repocompass")
+logger = logging.getLogger("kerno")
 
 app = Flask(__name__)
 
@@ -91,7 +91,7 @@ def fetch_github_repo_facts(owner: str, repo: str, github_token: Optional[str] =
     """
     headers = {
         "Accept": "application/vnd.github.v3+json",
-        "User-Agent": "RepoCompass-OpenSource-Guide/1.0"
+        "User-Agent": "Kerno-OpenSource-Guide/1.0"
     }
     token = github_token or os.environ.get("GITHUB_TOKEN")
     if token and token.strip() and token.strip() != "your_github_personal_access_token_here":
@@ -478,7 +478,7 @@ def call_gemma_model(facts: Dict[str, Any], api_key: Optional[str] = None, model
     config_list = [f"{c['filename']} - {c['description']}" for c in facts["detected_configs"]]
     languages_str = ", ".join([f"{l['name']} ({l['percentage']}%)" for l in facts["languages"]]) or "None specified"
 
-    prompt = f"""You are RepoCompass, an AI open-source onboarding mentor powered by Gemma 4.
+    prompt = f"""You are Kerno, an AI open-source onboarding mentor powered by Gemma 4.
 Analyze the following real repository data and synthesize an accurate, beginner-friendly contribution guide.
 
 === REPOSITORY FACTS (VERIFIED GROUND TRUTH) ===
@@ -593,7 +593,7 @@ Do NOT include markdown formatting outside the JSON. Return raw JSON.
 # ==============================================================================
 @app.route("/")
 def index():
-    """Renders the main RepoCompass developer dashboard."""
+    """Renders the main Kerno developer dashboard."""
     return render_template("index.html")
 
 
@@ -653,7 +653,7 @@ def health_check():
 
     return jsonify({
         "status": "healthy",
-        "service": "RepoCompass",
+        "service": "Kerno",
         "configured_model": DEFAULT_GEMMA_MODEL,
         "verified_models": ["gemma-4-31b-it", "gemma-4-26b-a4b-it"],
         "gemini_api_configured": has_gemini,
@@ -722,5 +722,5 @@ def get_sample():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     debug = os.environ.get("FLASK_DEBUG", "false").lower() == "true"
-    print(f"RepoCompass running on http://127.0.0.1:{port}")
+    print(f"Kerno running on http://127.0.0.1:{port}")
     app.run(host="0.0.0.0", port=port, debug=debug)

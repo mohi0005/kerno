@@ -1,4 +1,4 @@
-# RepoCompass 🧭
+# Kerno 🧭
 ### AI-Powered Open-Source Contribution Guide for Beginners
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
@@ -6,7 +6,7 @@
 [![Framework: Flask](https://img.shields.io/badge/Framework-Flask%203.x-black.svg)](https://flask.palletsprojects.com/)
 [![AI Model: Gemma 4](https://img.shields.io/badge/AI%20Model-Gemma%204%20(gemma--4--31b--it)-indigo.svg)](https://ai.google.dev/gemma)
 
-> **RepoCompass** is an AI-powered open-source contribution guide that helps developers understand unfamiliar GitHub repositories quickly. Users paste a public repository URL to receive a project overview, explanations of important files, setup guidance based on repository contents, and AI-generated suggestions for beginner-friendly contribution areas.
+> **Kerno** is an AI-powered open-source contribution guide that helps developers understand unfamiliar GitHub repositories quickly. Users paste a public repository URL to receive a project overview, explanations of important files, setup guidance based on repository contents, and AI-generated suggestions for beginner-friendly contribution areas.
 >
 > The application uses the GitHub REST API to retrieve repository information and Gemma to explain the project in simple language. It is built with Python, Flask, HTML, CSS, and JavaScript, with the goal of making open-source development more accessible to students and new contributors.
 >
@@ -26,9 +26,9 @@ Newcomers to open-source software face overwhelming friction when trying to make
 
 ## 💡 Solution
 
-**RepoCompass** bridges this gap by combining **deterministic repository truth** with **grounded Gemma 4 synthesis**:
+**Kerno** bridges this gap by combining **deterministic repository truth** with **grounded Gemma 4 synthesis**:
 - A developer simply pastes any public GitHub repository link (e.g., `https://github.com/pallets/flask` or `expressjs/express`).
-- RepoCompass connects to the GitHub REST API to extract verified repository facts: languages, stars, license, root directory trees, community health files, and build manifests (such as `pyproject.toml`, `package.json`, or `Cargo.toml`).
+- Kerno connects to the GitHub REST API to extract verified repository facts: languages, stars, license, root directory trees, community health files, and build manifests (such as `pyproject.toml`, `package.json`, or `Cargo.toml`).
 - Google's **Gemma 4** (`gemma-4-31b-it`) processes this verified ground truth under strict grounding rules to produce plain-English architectural explanations, identify critical files, generate copy-pasteable setup instructions, and highlight beginner-friendly contribution avenues.
 - Facts and AI synthesis are strictly separated: users always know which details are verified GitHub facts and which are AI-generated suggestions.
 
@@ -45,14 +45,14 @@ Newcomers to open-source software face overwhelming friction when trying to make
 - **Transparent AI Disclaimer:** Explicitly marks AI recommendations as exploratory avenues to investigate rather than verified open issues.
 - **Interactive First-Time Checklist:** Built-in interactive checklist for beginners tracking fork, clone, branch, test, and pull request workflows.
 - **Helpful External Links:** Direct links to official open-source guides, Good First Issue trackers, and Git documentation.
-- **Graceful Degradation:** If API limits are reached or an API key is missing, RepoCompass falls back to a deterministic rule-based analysis without crashing.
+- **Graceful Degradation:** If API limits are reached or an API key is missing, Kerno falls back to a deterministic rule-based analysis without crashing.
 
 ---
 
 ## 🤖 Exact Gemma Model Used & How Gemma Contributes
 
 ### Verified Model Identifier: `gemma-4-31b-it`
-RepoCompass uses Google's **Gemma 4** instruction-tuned model, accessed via the Google Gemini API (`generativelanguage.googleapis.com`):
+Kerno uses Google's **Gemma 4** instruction-tuned model, accessed via the Google Gemini API (`generativelanguage.googleapis.com`):
 - **Model Name:** Gemma 4 31B IT
 - **Model ID:** `gemma-4-31b-it`
 - **Alternative Supported:** `gemma-4-26b-a4b-it` (Gemma 4 26B MoE IT)
@@ -101,7 +101,7 @@ RepoCompass uses Google's **Gemma 4** instruction-tuned model, accessed via the 
 
 ## 💻 Windows Setup & Installation
 
-Follow these steps to set up and run RepoCompass on Windows (PowerShell or Command Prompt):
+Follow these steps to set up and run Kerno on Windows (PowerShell or Command Prompt):
 
 ### Prerequisites
 - Python 3.10, 3.11, 3.12, 3.13, or 3.14 installed and on your `PATH`.
@@ -159,7 +159,7 @@ python app.py
 ```
 You will see output similar to:
 ```
-RepoCompass running on http://127.0.0.1:5000
+Kerno running on http://127.0.0.1:5000
  * Serving Flask app 'app'
  * Running on all addresses (0.0.0.0)
  * Running on http://127.0.0.1:5000
@@ -169,9 +169,9 @@ Open your browser and navigate to:
 **`http://127.0.0.1:5000`**
 
 ### Running the Test Suite
-RepoCompass includes a full test suite covering URL parsing, manifest detection, heuristic fallbacks, and Flask endpoints:
+Kerno includes a full test suite covering URL parsing, manifest detection, heuristic fallbacks, and Flask endpoints:
 ```powershell
-python -m pytest tests/test_repocompass.py -v
+python -m pytest tests/test_kerno.py -v
 ```
 
 ---
@@ -181,7 +181,7 @@ python -m pytest tests/test_repocompass.py -v
 - **Exploratory Opportunities vs. Live GitHub Issues:** The contribution areas suggested by Gemma 4 are exploratory hypotheses based on repository structure (e.g. missing documentation files, testing gaps, example code). They are **not** verified open GitHub issues or triaged bugs. Contributors must always check the repository's open issues and discuss ideas with maintainers first.
 - **GitHub API Rate Limits:** Without a `GITHUB_TOKEN`, the unauthenticated GitHub REST API is capped at 60 requests per hour per IP. Adding a free personal access token in `.env` increases the limit to 5,000 requests per hour.
 - **Large Monorepos:** For massive repositories, only the root directory tree and top-level manifests are scanned for context to ensure low latency and adhere to token limits.
-- **Private Repositories:** RepoCompass is specifically designed for public open-source repositories; private repositories are not supported.
+- **Private Repositories:** Kerno is specifically designed for public open-source repositories; private repositories are not supported.
 
 ---
 
