@@ -9,288 +9,475 @@
 </head>
 <body>
 
-  <!-- Top App Navigation -->
-  <header class="app-header">
+  <!-- Precision Navigation Bar -->
+  <header class="site-header">
     <div class="container header-inner">
-      <div class="brand-wrapper">
-        <div class="brand-icon">🧭</div>
-        <div>
-          <h1 class="brand-title">Kerno</h1>
-          <p class="brand-tagline">AI-Powered Open-Source Contribution Guide for Beginners</p>
+      <a href="/" class="brand" aria-label="Kerno Homepage">
+        <div class="brand-icon-box">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" fill="currentColor" fill-opacity="0.2"/>
+          </svg>
         </div>
-      </div>
-      <div class="header-badges">
-        <span class="badge-ai">
-          <span style="color: #4f46e5;">✨</span> Gemma 4 Edition (gemma-4-31b-it)
-        </span>
+        <span class="brand-title">Kerno</span>
+      </a>
+
+      <nav class="nav-links" aria-label="Main Navigation">
+        <a href="#features" class="nav-link">Features</a>
+        <a href="#how-it-works" class="nav-link">How It Works</a>
+        <a href="#model-info" class="nav-link">Gemma 4</a>
+      </nav>
+
+      <div class="header-actions">
+        <div class="model-pill-compact" title="Verified model in source code">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2v20M2 12h20M4.93 4.93l14.14 14.14M4.93 19.07l14.14-14.14"/>
+          </svg>
+          <span>gemma-4-31b-it</span>
+        </div>
+        <a href="https://github.com/mohi0005/kerno" target="_blank" rel="noopener noreferrer" class="btn-github-nav" aria-label="View on GitHub">
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+          </svg>
+          <span>GitHub</span>
+        </a>
       </div>
     </div>
   </header>
 
-  <main class="container">
-    <!-- Search / Input Hero Section -->
-    <section class="search-card">
-      <h2 class="search-title">Explore Any Public GitHub Repository</h2>
-      <p class="search-description">
-        Paste a GitHub repository link to instantly generate a beginner-friendly overview, file breakdown, setup instructions, and grounded contribution opportunities.
-      </p>
+  <main class="main-content">
+    <div class="container">
 
-      <form id="analyzeForm" class="search-form" onsubmit="handleAnalyze(event)">
-        <div class="url-input-wrapper">
-          <input
-            type="text"
-            id="repoUrl"
-            class="url-input"
-            placeholder="e.g. https://github.com/pallets/flask or pallets/flask"
-            autocomplete="off"
-            spellcheck="false"
-            required
-          />
+      <!-- Hero Section -->
+      <section class="hero-section">
+        <div class="hero-tag">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+          </svg>
+          <span>AI-Powered Open-Source Onboarding</span>
         </div>
-        <button type="submit" id="analyzeBtn" class="btn-primary">
-          <span id="btnIcon">🧭</span>
-          <span id="btnText">Generate Guide</span>
-        </button>
-      </form>
+        <h1 class="hero-title">Your next open-source contribution starts here.</h1>
+        <p class="hero-description">
+          Understand any codebase, find the important files, get setup instructions, and discover beginner-friendly ways to contribute.
+        </p>
+      </section>
 
-      <!-- Quick Preset Chips -->
-      <div class="presets-row">
-        <span class="presets-label">Quick Repos:</span>
-        <button type="button" class="preset-chip" onclick="setRepo('pallets/flask')">pallets/flask</button>
-        <button type="button" class="preset-chip" onclick="setRepo('psf/requests')">psf/requests</button>
-        <button type="button" class="preset-chip" onclick="setRepo('fastapi/fastapi')">fastapi/fastapi</button>
-        <button type="button" class="preset-chip" onclick="setRepo('expressjs/express')">expressjs/express</button>
-        <button type="button" class="preset-chip" onclick="loadSampleDemo()">⚡ Instant Sample</button>
-      </div>
-
-      <!-- Advanced Settings (Optional Custom Key) -->
-      <div>
-        <span class="advanced-toggle" onclick="toggleAdvanced()">⚙️ Advanced API & Model Settings</span>
-        <div id="advancedPanel" class="advanced-panel">
-          <p style="margin-bottom: 8px; color: var(--text-muted);">
-            By default, Kerno uses the server's configured <code>GEMINI_API_KEY</code> and Gemma 4 model (<code>gemma-4-31b-it</code>).
-          </p>
-          <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-            <div style="flex: 1; min-width: 240px;">
-              <label style="display: block; font-size: 0.76rem; font-weight: 600; margin-bottom: 4px;">Custom Gemini API Key (optional):</label>
-              <input type="password" id="customApiKey" placeholder="AIzaSy..." class="url-input" style="padding: 6px 10px; font-size: 0.85rem;">
-            </div>
-            <div style="flex: 1; min-width: 200px;">
-              <label style="display: block; font-size: 0.76rem; font-weight: 600; margin-bottom: 4px;">Target Model ID:</label>
-              <select id="customModel" class="url-input" style="padding: 6px 10px; font-size: 0.85rem;">
-                <option value="gemma-4-31b-it" selected>gemma-4-31b-it (Verified Gemma 4)</option>
-                <option value="gemma-4-26b-a4b-it">gemma-4-26b-a4b-it (Gemma 4 MoE)</option>
-              </select>
-            </div>
+      <!-- Main Interaction: Repository Input Card -->
+      <section class="input-card" aria-label="Analyze GitHub Repository">
+        <form id="analyzeForm" class="input-form" onsubmit="handleAnalyze(event)">
+          <div class="input-wrapper">
+            <svg class="input-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+            </svg>
+            <input
+              type="text"
+              id="repoUrl"
+              class="repo-input"
+              placeholder="github.com/owner/repository"
+              autocomplete="off"
+              spellcheck="false"
+              aria-label="GitHub Repository URL"
+              required
+            />
           </div>
-        </div>
-      </div>
-    </section>
+          <button type="submit" id="analyzeBtn" class="btn-primary">
+            <span id="btnIcon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/>
+              </svg>
+            </span>
+            <span id="btnText">Generate my guide</span>
+          </button>
+        </form>
 
-    <!-- Error Alert Banner -->
-    <div id="errorAlert" class="alert-error" role="alert">
-      <span style="font-size: 1.2rem;">⚠️</span>
-      <div style="flex: 1;">
-        <strong>Error:</strong> <span id="errorMessage">Unable to process repository.</span>
-      </div>
-      <button type="button" onclick="dismissError()" style="background: none; border: none; font-size: 1rem; cursor: pointer; color: var(--danger);">&times;</button>
-    </div>
-
-    <!-- Loading Indicator -->
-    <div id="loadingIndicator" class="loading-indicator">
-      <div class="spinner"></div>
-      <h3 class="loading-title">Analyzing Repository with Gemma 4</h3>
-      <p id="loadingStatusText" class="loading-steps">
-        Fetching metadata, scanning manifest files, and synthesizing contribution guide...
-      </p>
-    </div>
-
-    <!-- Results Container -->
-    <div id="resultsContainer" class="results-container">
-      
-      <!-- 1. Repository Overview -->
-      <section class="dash-card">
-        <div class="dash-card-header">
-          <div class="card-title-group">
-            <span class="card-icon">📦</span>
-            <h2 class="card-title">Repository Overview</h2>
-          </div>
-          <span class="pill-fact">Verified GitHub Facts</span>
+        <!-- Sample Repositories Row -->
+        <div class="presets-container">
+          <span class="presets-label">Examples:</span>
+          <button type="button" class="preset-button" onclick="setRepo('pallets/flask')">pallets/flask</button>
+          <button type="button" class="preset-button" onclick="setRepo('psf/requests')">psf/requests</button>
+          <button type="button" class="preset-button" onclick="setRepo('fastapi/fastapi')">fastapi/fastapi</button>
+          <button type="button" class="preset-button" onclick="setRepo('expressjs/express')">expressjs/express</button>
+          <button type="button" class="preset-button preset-button-sample" onclick="loadSampleDemo()" title="Instant pre-computed guide for offline demo">
+            ⚡ Instant Sample
+          </button>
         </div>
 
-        <div class="repo-headline">
-          <a id="repoNameLink" href="#" target="_blank" rel="noopener noreferrer" class="repo-name-link">owner/repo</a>
-          <span id="repoLicenseBadge" class="pill-fact">MIT</span>
-        </div>
-
-        <p id="repoDescription" class="repo-description">Repository description will appear here.</p>
-
-        <!-- Metrics Grid -->
-        <div class="metrics-grid">
-          <div class="metric-box">
-            <div class="metric-label">Stars</div>
-            <div id="metricStars" class="metric-value">0</div>
-          </div>
-          <div class="metric-box">
-            <div class="metric-label">Forks</div>
-            <div id="metricForks" class="metric-value">0</div>
-          </div>
-          <div class="metric-box">
-            <div class="metric-label">Open Issues</div>
-            <div id="metricIssues" class="metric-value">0</div>
-          </div>
-          <div class="metric-box">
-            <div class="metric-label">Default Branch</div>
-            <div id="metricBranch" class="metric-value">main</div>
-          </div>
-        </div>
-
-        <!-- Languages Breakdown -->
+        <!-- Advanced Settings Drawer -->
         <div>
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-            <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">Languages</span>
+          <button type="button" class="advanced-toggle-btn" onclick="toggleAdvanced()" aria-expanded="false" id="advancedToggleBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="9 18 15 12 9 6"/>
+            </svg>
+            <span>Advanced API & Model Settings</span>
+          </button>
+          <div id="advancedPanel" class="advanced-drawer">
+            <p style="color: var(--text-muted); font-size: 0.78rem; margin-bottom: 8px;">
+              By default, Kerno uses server-configured keys and Gemma 4 (<code>gemma-4-31b-it</code>). You may optionally provide your own credentials for custom rate limits.
+            </p>
+            <div class="advanced-grid">
+              <div>
+                <label for="customApiKey" class="field-label">Custom Gemini API Key (optional):</label>
+                <input type="password" id="customApiKey" placeholder="AIzaSy..." class="field-input">
+              </div>
+              <div>
+                <label for="customModel" class="field-label">Target Model ID:</label>
+                <select id="customModel" class="field-input">
+                  <option value="gemma-4-31b-it" selected>gemma-4-31b-it (Verified Gemma 4 31B IT)</option>
+                  <option value="gemma-4-26b-a4b-it">gemma-4-26b-a4b-it (Gemma 4 26B MoE IT)</option>
+                </select>
+              </div>
+            </div>
           </div>
-          <div id="languageBar" class="language-bar"></div>
-          <div id="languageLegend" class="language-legend"></div>
-        </div>
-
-        <!-- Direct GitHub Action Links -->
-        <div class="quick-actions-row">
-          <a id="linkRepo" href="#" target="_blank" rel="noopener noreferrer" class="btn-secondary">🔗 Open on GitHub</a>
-          <a id="linkIssues" href="#" target="_blank" rel="noopener noreferrer" class="btn-secondary">🐛 Good First Issues</a>
-          <a id="linkPRs" href="#" target="_blank" rel="noopener noreferrer" class="btn-secondary">🔀 Pull Requests</a>
-          <a id="linkContributing" href="#" target="_blank" rel="noopener noreferrer" class="btn-secondary" style="display: none;">📜 Contributing Guidelines</a>
         </div>
       </section>
 
-      <!-- 2. Project Purpose & Explanation -->
-      <section class="dash-card">
-        <div class="dash-card-header">
-          <div class="card-title-group">
-            <span class="card-icon">💡</span>
-            <h2 class="card-title">Project Purpose & Architecture</h2>
-          </div>
-          <span id="aiStatusPill" class="pill-ai">Gemma 4 Analysis</span>
+      <!-- Alert Notification Banner -->
+      <div id="errorAlert" class="alert-banner" role="alert">
+        <svg class="alert-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+          <line x1="12" y1="9" x2="12" y2="13"/>
+          <line x1="12" y1="17" x2="12.01" y2="17"/>
+        </svg>
+        <div style="flex: 1;">
+          <strong>Error:</strong> <span id="errorMessage">Unable to process repository.</span>
         </div>
+        <button type="button" class="alert-close" onclick="dismissError()" aria-label="Close error alert">
+          <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2.5" fill="none"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
 
-        <div id="aiNoticeBanner" class="status-banner ai">
-          <span>✨</span>
-          <span id="aiNoticeText">Synthesized by Gemma 4 based on repository metadata and documentation.</span>
-        </div>
-
-        <div id="projectPurpose" class="purpose-content">
-          <!-- Populated dynamically -->
-        </div>
-      </section>
-
-      <!-- 3. Important Files & Configuration -->
-      <section class="dash-card">
-        <div class="dash-card-header">
-          <div class="card-title-group">
-            <span class="card-icon">📂</span>
-            <h2 class="card-title">Important Files & Structure</h2>
-          </div>
-          <span class="pill-fact">Actual Repository Files</span>
-        </div>
-
-        <p style="font-size: 0.88rem; color: var(--text-muted); margin-bottom: 16px;">
-          These key files were detected directly in the repository and are crucial for understanding the codebase:
+      <!-- Loading State Box -->
+      <div id="loadingIndicator" class="loading-box" aria-live="polite">
+        <div class="spinner"></div>
+        <h3 class="loading-heading">Analyzing Repository with Gemma 4</h3>
+        <p id="loadingStatusText" class="loading-subtext">
+          Extracting metadata, scanning manifests, and synthesizing grounded contribution guide...
         </p>
+      </div>
 
-        <div id="importantFilesList" class="files-list">
-          <!-- Populated dynamically -->
+      <!-- Results Container (Visible after analysis) -->
+      <div id="resultsContainer" class="results-wrapper">
+
+        <!-- 1. Repository Overview Card -->
+        <section class="card" aria-labelledby="repoOverviewHeading">
+          <div class="card-header">
+            <div class="card-header-left">
+              <svg class="card-header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/>
+                <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+                <line x1="12" y1="22.08" x2="12" y2="12"/>
+              </svg>
+              <h2 id="repoOverviewHeading" class="card-title">Repository Overview</h2>
+            </div>
+            <span class="badge-tag badge-tag-fact">Verified GitHub Facts</span>
+          </div>
+
+          <div class="repo-meta-row">
+            <a id="repoNameLink" href="#" target="_blank" rel="noopener noreferrer" class="repo-title-link">
+              <span>owner/repo</span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg>
+            </a>
+            <span id="repoLicenseBadge" class="repo-license-tag">MIT</span>
+          </div>
+
+          <p id="repoDescription" class="repo-desc-text">Repository description will appear here.</p>
+
+          <!-- Metrics Strip -->
+          <div class="metrics-strip">
+            <div class="metric-cell">
+              <div class="metric-cell-label">Stars</div>
+              <div id="metricStars" class="metric-cell-value">0</div>
+            </div>
+            <div class="metric-cell">
+              <div class="metric-cell-label">Forks</div>
+              <div id="metricForks" class="metric-cell-value">0</div>
+            </div>
+            <div class="metric-cell">
+              <div class="metric-cell-label">Open Issues</div>
+              <div id="metricIssues" class="metric-cell-value">0</div>
+            </div>
+            <div class="metric-cell">
+              <div class="metric-cell-label">Default Branch</div>
+              <div id="metricBranch" class="metric-cell-value">main</div>
+            </div>
+          </div>
+
+          <!-- Language Breakdown Track -->
+          <div class="language-section">
+            <div id="languageBar" class="language-bar-track"></div>
+            <div id="languageLegend" class="language-tags-list"></div>
+          </div>
+
+          <!-- Quick Action Buttons -->
+          <div class="actions-bar">
+            <a id="linkRepo" href="#" target="_blank" rel="noopener noreferrer" class="action-btn-link">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg>
+              <span>Open on GitHub</span>
+            </a>
+            <a id="linkIssues" href="#" target="_blank" rel="noopener noreferrer" class="action-btn-link">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              <span>Good First Issues</span>
+            </a>
+            <a id="linkPRs" href="#" target="_blank" rel="noopener noreferrer" class="action-btn-link">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M13 6h3a2 2 0 012 2v7M6 9v12"/></svg>
+              <span>Pull Requests</span>
+            </a>
+            <a id="linkContributing" href="#" target="_blank" rel="noopener noreferrer" class="action-btn-link" style="display: none;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+              <span>Contributing Guide</span>
+            </a>
+          </div>
+        </section>
+
+        <!-- 2. Project Purpose & Architecture -->
+        <section class="card" aria-labelledby="purposeHeading">
+          <div class="card-header">
+            <div class="card-header-left">
+              <svg class="card-header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="12" y1="16" x2="12" y2="12"/>
+                <line x1="12" y1="8" x2="12.01" y2="8"/>
+              </svg>
+              <h2 id="purposeHeading" class="card-title">Project Purpose & Architecture</h2>
+            </div>
+            <span id="aiStatusPill" class="badge-tag badge-tag-ai">Gemma 4 Analysis</span>
+          </div>
+
+          <div id="aiNoticeBanner" class="status-pill-bar ai">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            <span id="aiNoticeText">Synthesized by Gemma 4 based on repository metadata and documentation.</span>
+          </div>
+
+          <div id="projectPurpose" class="purpose-body">
+            <!-- Populated dynamically -->
+          </div>
+        </section>
+
+        <!-- 3. Important Files & Configuration -->
+        <section class="card" aria-labelledby="filesHeading">
+          <div class="card-header">
+            <div class="card-header-left">
+              <svg class="card-header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/>
+              </svg>
+              <h2 id="filesHeading" class="card-title">Important Files & Structure</h2>
+            </div>
+            <span class="badge-tag badge-tag-fact">Actual Repository Files</span>
+          </div>
+
+          <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 14px;">
+            Key files identified directly in the repository root that every new contributor should know:
+          </p>
+
+          <div id="importantFilesList" class="files-stack">
+            <!-- Populated dynamically -->
+          </div>
+        </section>
+
+        <!-- 4. Setup & Local Development -->
+        <section class="card" aria-labelledby="setupHeading">
+          <div class="card-header">
+            <div class="card-header-left">
+              <svg class="card-header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="4 17 10 11 4 5"/>
+                <line x1="12" y1="19" x2="20" y2="19"/>
+              </svg>
+              <h2 id="setupHeading" class="card-title">Setup & Local Development</h2>
+            </div>
+            <span class="badge-tag badge-tag-fact">Based on Detected Manifests</span>
+          </div>
+
+          <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 14px;">
+            Commands synthesized strictly from verified configuration files (e.g. pyproject.toml, package.json, requirements.txt):
+          </p>
+
+          <div id="setupStepsList" class="steps-stack">
+            <!-- Populated dynamically -->
+          </div>
+        </section>
+
+        <!-- 5. Suggested Beginner Contribution Areas -->
+        <section class="card" aria-labelledby="contributionsHeading">
+          <div class="card-header">
+            <div class="card-header-left">
+              <svg class="card-header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <polygon points="12 6 12 12 16 14"/>
+              </svg>
+              <h2 id="contributionsHeading" class="card-title">Beginner Contribution Opportunities</h2>
+            </div>
+            <span class="badge-tag badge-tag-ai">AI-Generated Ideas</span>
+          </div>
+
+          <!-- Required Exploratory Disclaimer -->
+          <div class="disclaimer-card">
+            <strong>⚠️ Contributor Notice:</strong> These areas are exploratory suggestions synthesized by Gemma 4 from codebase structure and documentation. They are <em>not</em> verified open GitHub issues. Always check the repository's open issues and discuss ideas with maintainers before starting work.
+          </div>
+
+          <div id="suggestionsGrid" class="suggestions-grid-layout">
+            <!-- Populated dynamically -->
+          </div>
+        </section>
+
+        <!-- 6. First Contribution Checklist & Resources -->
+        <section class="card" aria-labelledby="checklistHeading">
+          <div class="card-header">
+            <div class="card-header-left">
+              <svg class="card-header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="9 11 12 14 22 4"/>
+                <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
+              </svg>
+              <h2 id="checklistHeading" class="card-title">First Contribution Checklist</h2>
+            </div>
+            <span id="checklistCounter" class="badge-tag badge-tag-fact">0 of 8 Completed</span>
+          </div>
+
+          <div class="checklist-progress-bar">
+            <div id="checklistProgressFill" class="checklist-progress-fill"></div>
+          </div>
+
+          <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 14px;">
+            Step-by-step workflow for a clean and professional first pull request:
+          </p>
+
+          <div id="checklistContainer" class="checklist-stack">
+            <!-- Populated dynamically -->
+          </div>
+
+          <!-- Curated Contributor Links -->
+          <div style="margin-top: 24px; padding-top: 18px; border-top: 1px solid var(--border-subtle);">
+            <h3 style="font-size: 0.9rem; font-weight: 700; color: var(--text-primary); margin-bottom: 10px;">Helpful Contributor Resources</h3>
+            <div class="resources-grid">
+              <a href="https://opensource.guide/how-to-contribute/" target="_blank" rel="noopener noreferrer" class="resource-card-link">
+                <div class="resource-icon-box">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg>
+                </div>
+                <div>
+                  <div class="resource-title">Open Source Guide</div>
+                  <div class="resource-sub">How to contribute effectively</div>
+                </div>
+              </a>
+              <a href="https://goodfirstissue.dev/" target="_blank" rel="noopener noreferrer" class="resource-card-link">
+                <div class="resource-icon-box">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                </div>
+                <div>
+                  <div class="resource-title">Good First Issue</div>
+                  <div class="resource-sub">Find beginner tasks across projects</div>
+                </div>
+              </a>
+              <a href="https://docs.github.com/en/get-started/exploring-projects-on-github/finding-ways-to-contribute-to-open-source-on-github" target="_blank" rel="noopener noreferrer" class="resource-card-link">
+                <div class="resource-icon-box">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                </div>
+                <div>
+                  <div class="resource-title">GitHub Guides</div>
+                  <div class="resource-sub">Official guide to contributing</div>
+                </div>
+              </a>
+              <a href="https://git-scm.com/book/en/v2" target="_blank" rel="noopener noreferrer" class="resource-card-link">
+                <div class="resource-icon-box">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+                </div>
+                <div>
+                  <div class="resource-title">Pro Git Book</div>
+                  <div class="resource-sub">Free comprehensive Git reference</div>
+                </div>
+              </a>
+            </div>
+          </div>
+        </section>
+
+      </div>
+
+      <!-- Feature Highlights Section (Section 3D) -->
+      <section id="features" class="section-wrapper" aria-labelledby="featuresHeading">
+        <div class="section-header">
+          <div class="section-kicker">Core Capabilities</div>
+          <h2 id="featuresHeading" class="section-title">Built for new contributors</h2>
+          <p class="section-sub">Everything you need to turn an unfamiliar GitHub repository into a welcoming starting point.</p>
+        </div>
+
+        <div class="features-grid">
+          <div class="feature-box">
+            <div class="feature-icon-wrapper">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+            </div>
+            <h3 class="feature-title">Understand the codebase</h3>
+            <p class="feature-desc">Explains the project's purpose and core architecture in plain, accessible language without tribal jargon.</p>
+          </div>
+
+          <div class="feature-box">
+            <div class="feature-icon-wrapper">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
+            </div>
+            <h3 class="feature-title">Find important files</h3>
+            <p class="feature-desc">Identifies critical entry points, manifests, and community guides from real repository contents with direct links.</p>
+          </div>
+
+          <div class="feature-box">
+            <div class="feature-icon-wrapper">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+            </div>
+            <h3 class="feature-title">Get running fast</h3>
+            <p class="feature-desc">Provides step-by-step installation, virtual environment setup, and test commands grounded strictly in detected manifests.</p>
+          </div>
+
+          <div class="feature-box">
+            <div class="feature-icon-wrapper">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            </div>
+            <h3 class="feature-title">Find your first contribution</h3>
+            <p class="feature-desc">Suggests safe, beginner-friendly areas (docs, tests, typing, bug reproduction) supported by concrete repository evidence.</p>
+          </div>
         </div>
       </section>
 
-      <!-- 4. Setup & Installation Instructions -->
-      <section class="dash-card">
-        <div class="dash-card-header">
-          <div class="card-title-group">
-            <span class="card-icon">⚙️</span>
-            <h2 class="card-title">Setup & Local Development</h2>
-          </div>
-          <span class="pill-fact">Based on Detected Manifests</span>
+      <!-- How It Works Section (Section 3E) -->
+      <section id="how-it-works" class="section-wrapper" aria-labelledby="howItWorksHeading">
+        <div class="section-header">
+          <div class="section-kicker">Workflow</div>
+          <h2 id="howItWorksHeading" class="section-title">How Kerno works</h2>
+          <p class="section-sub">Three simple steps to transform repository friction into a clear contribution roadmap.</p>
         </div>
 
-        <p style="font-size: 0.88rem; color: var(--text-muted); margin-bottom: 16px;">
-          Commands derived from verified configuration files (e.g. package.json, requirements.txt, pyproject.toml):
-        </p>
+        <div class="how-steps-grid">
+          <div class="how-step-card">
+            <div class="step-num-pill">1</div>
+            <h3 class="step-heading">Paste a repository</h3>
+            <p class="step-subtext">Enter any public GitHub URL (e.g., <code>pallets/flask</code> or full HTTPS link) into the search bar.</p>
+          </div>
 
-        <div id="setupStepsList" class="setup-steps-list">
-          <!-- Populated dynamically -->
+          <div class="how-step-card">
+            <div class="step-num-pill">2</div>
+            <h3 class="step-heading">Live fact extraction</h3>
+            <p class="step-subtext">Kerno queries the GitHub REST API to scan actual manifests (<code>pyproject.toml</code>, <code>package.json</code>), file trees, and READMEs.</p>
+          </div>
+
+          <div class="how-step-card">
+            <div class="step-num-pill">3</div>
+            <h3 class="step-heading">Explore your guide</h3>
+            <p class="step-subtext">Google's Gemma 4 synthesizes a grounded guide, file breakdown, verified setup commands, and contribution suggestions.</p>
+          </div>
         </div>
       </section>
 
-      <!-- 5. Suggested Beginner Contribution Areas -->
-      <section class="dash-card">
-        <div class="dash-card-header">
-          <div class="card-title-group">
-            <span class="card-icon">🎯</span>
-            <h2 class="card-title">Beginner Contribution Opportunities</h2>
-          </div>
-          <span class="pill-ai">AI-Generated Ideas</span>
+      <!-- Trust & Model Info Section (Section 3F) -->
+      <section id="model-info" class="trust-card" aria-labelledby="trustHeading">
+        <div class="trust-card-text">
+          <h3 id="trustHeading" class="trust-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            <span>Powered by Google Gemma 4 & Public GitHub Data</span>
+          </h3>
+          <p class="trust-desc">
+            Kerno retrieves public repository metadata, file trees, and configuration files strictly through the standard GitHub REST API. Explanations and suggestions are synthesized by Google's open-weight <strong>Gemma 4</strong> (<code>gemma-4-31b-it</code>) under strict grounding rules to prevent hallucinated files, tools, or issues.
+          </p>
         </div>
-
-        <!-- Required Disclaimer Banner -->
-        <div class="disclaimer-banner">
-          <strong>⚠️ Notice for Contributors:</strong>
-          These opportunities are exploratory suggestions synthesized by Gemma 4 from codebase structure and documentation. They are <em>not</em> verified open GitHub issues. Always check the repository's open issues and ask maintainers before beginning large changes.
-        </div>
-
-        <div id="suggestionsGrid" class="suggestions-grid">
-          <!-- Populated dynamically -->
-        </div>
-      </section>
-
-      <!-- 6. Contribution Checklist & Helpful Resources -->
-      <section class="dash-card">
-        <div class="dash-card-header">
-          <div class="card-title-group">
-            <span class="card-icon">✅</span>
-            <h2 class="card-title">First Contribution Checklist</h2>
-          </div>
-          <span class="pill-fact">Interactive Workflow</span>
-        </div>
-
-        <p style="font-size: 0.88rem; color: var(--text-muted); margin-bottom: 16px;">
-          Follow these standard best practices for submitting your pull request:
-        </p>
-
-        <div id="checklistContainer" class="checklist-wrapper">
-          <!-- Populated dynamically -->
-        </div>
-
-        <div style="margin-top: 24px; border-top: 1px solid var(--border-color); padding-top: 18px;">
-          <h3 style="font-size: 0.95rem; font-weight: 700; margin-bottom: 12px; color: var(--text-main);">Helpful Contributor Resources</h3>
-          <div class="links-grid">
-            <a href="https://opensource.guide/how-to-contribute/" target="_blank" rel="noopener noreferrer" class="link-card">
-              <span class="link-card-icon">📖</span>
-              <div>
-                <div class="link-card-title">Open Source Guide</div>
-                <div class="link-card-sub">How to contribute to open source</div>
-              </div>
-            </a>
-            <a href="https://goodfirstissue.dev/" target="_blank" rel="noopener noreferrer" class="link-card">
-              <span class="link-card-icon">🏷️</span>
-              <div>
-                <div class="link-card-title">Good First Issue</div>
-                <div class="link-card-sub">Find beginner tasks across projects</div>
-              </div>
-            </a>
-            <a href="https://docs.github.com/en/get-started/exploring-projects-on-github/finding-ways-to-contribute-to-open-source-on-github" target="_blank" rel="noopener noreferrer" class="link-card">
-              <span class="link-card-icon">🐙</span>
-              <div>
-                <div class="link-card-title">GitHub Guides</div>
-                <div class="link-card-sub">Ways to contribute on GitHub</div>
-              </div>
-            </a>
-            <a href="https://git-scm.com/book/en/v2" target="_blank" rel="noopener noreferrer" class="link-card">
-              <span class="link-card-icon">💻</span>
-              <div>
-                <div class="link-card-title">Pro Git Book</div>
-                <div class="link-card-sub">Free comprehensive Git reference</div>
-              </div>
-            </a>
+        <div class="trust-badge-col">
+          <div class="model-pill-compact" style="padding: 6px 14px; font-size: 0.82rem;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            <span>Gemma 4 (31B IT)</span>
           </div>
         </div>
       </section>
@@ -298,17 +485,24 @@
     </div>
   </main>
 
-  <!-- Footer -->
-  <footer class="container app-footer">
-    <p>
-      Kerno &bull; Open-source contribution guide powered by Google's <strong>Gemma 4</strong> (<code>gemma-4-31b-it</code>).
-    </p>
-    <p style="margin-top: 6px; font-size: 0.78rem;">
-      Released under the <a href="https://opensource.org/licenses/MIT" target="_blank" rel="noopener noreferrer">MIT License</a>.
-    </p>
+  <!-- Clean Minimal Footer -->
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <div class="footer-brand-col">
+        <div class="footer-brand-title">Kerno</div>
+        <p style="font-size: 0.8rem; color: var(--text-muted);">AI-powered open-source contribution guide for beginners.</p>
+      </div>
+
+      <div class="footer-links">
+        <a href="https://github.com/mohi0005/kerno" target="_blank" rel="noopener noreferrer" class="footer-link">GitHub</a>
+        <a href="https://github.com/mohi0005/kerno/blob/main/LICENSE" target="_blank" rel="noopener noreferrer" class="footer-link">MIT License</a>
+        <a href="#features" class="footer-link">Features</a>
+        <a href="#how-it-works" class="footer-link">How It Works</a>
+      </div>
+    </div>
   </footer>
 
-  <!-- Application Script -->
+  <!-- Application Logic -->
   <script>
     const LANGUAGE_COLORS = {
       Python: "#3572A5",
@@ -328,7 +522,7 @@
       Swift: "#F05138",
       Kotlin: "#A97BFF",
       Dart: "#00B4AB",
-      Default: "#64748b"
+      Default: "#71717a"
     };
 
     function escapeHtml(str) {
@@ -348,7 +542,10 @@
 
     function toggleAdvanced() {
       const panel = document.getElementById("advancedPanel");
-      panel.classList.toggle("open");
+      const btn = document.getElementById("advancedToggleBtn");
+      const isOpen = panel.classList.toggle("open");
+      btn.classList.toggle("open", isOpen);
+      btn.setAttribute("aria-expanded", isOpen ? "true" : "false");
     }
 
     function showError(message) {
@@ -365,14 +562,26 @@
 
     function copyToClipboard(text, btnElement) {
       navigator.clipboard.writeText(text).then(() => {
-        const originalText = btnElement.textContent;
-        btnElement.textContent = "Copied!";
+        const originalHtml = btnElement.innerHTML;
+        btnElement.innerHTML = `
+          <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+          <span>Copied!</span>
+        `;
         setTimeout(() => {
-          btnElement.textContent = originalText;
+          btnElement.innerHTML = originalHtml;
         }, 1800);
       }).catch(err => {
         console.error("Failed to copy text:", err);
       });
+    }
+
+    function updateChecklistProgress() {
+      const total = document.querySelectorAll("#checklistContainer input[type='checkbox']").length;
+      const checked = document.querySelectorAll("#checklistContainer input[type='checkbox']:checked").length;
+      const counter = document.getElementById("checklistCounter");
+      const fill = document.getElementById("checklistProgressFill");
+      if (counter) counter.textContent = `${checked} of ${total} Completed`;
+      if (fill && total > 0) fill.style.width = `${Math.round((checked / total) * 100)}%`;
     }
 
     async function handleAnalyze(e) {
@@ -394,7 +603,7 @@
 
       // UI Loading state
       analyzeBtn.disabled = true;
-      btnIcon.textContent = "⏳";
+      btnIcon.innerHTML = `<span class="spinner" style="width: 14px; height: 14px; border-width: 2px; margin: 0; display: inline-block;"></span>`;
       btnText.textContent = "Analyzing...";
       loading.classList.add("visible");
       results.classList.remove("visible");
@@ -421,8 +630,12 @@
         showError(err.message || "An unexpected error occurred.");
       } finally {
         analyzeBtn.disabled = false;
-        btnIcon.textContent = "🧭";
-        btnText.textContent = "Generate Guide";
+        btnIcon.innerHTML = `
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/>
+          </svg>
+        `;
+        btnText.textContent = "Generate my guide";
         loading.classList.remove("visible");
       }
     }
@@ -450,7 +663,10 @@
     function renderDashboard(facts, guide, modelId) {
       // 1. Repository Overview
       const nameLink = document.getElementById("repoNameLink");
-      nameLink.textContent = facts.full_name;
+      nameLink.innerHTML = `
+        <span>${escapeHtml(facts.full_name)}</span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg>
+      `;
       nameLink.href = facts.html_url;
 
       document.getElementById("repoDescription").textContent = facts.description || "No description provided.";
@@ -460,7 +676,7 @@
       document.getElementById("metricBranch").textContent = facts.default_branch || "main";
       document.getElementById("repoLicenseBadge").textContent = facts.license_spdx || facts.license || "No license";
 
-      // Languages
+      // Languages Bar & Legend
       const langBar = document.getElementById("languageBar");
       const langLegend = document.getElementById("languageLegend");
       langBar.innerHTML = "";
@@ -471,19 +687,19 @@
           const color = LANGUAGE_COLORS[l.name] || LANGUAGE_COLORS.Default;
           
           const seg = document.createElement("div");
-          seg.className = "language-segment";
+          seg.className = "language-bar-segment";
           seg.style.width = l.percentage + "%";
           seg.style.backgroundColor = color;
           seg.title = `${l.name}: ${l.percentage}%`;
           langBar.appendChild(seg);
 
           const leg = document.createElement("div");
-          leg.className = "legend-item";
-          leg.innerHTML = `<span class="legend-dot" style="background-color: ${color};"></span><span>${escapeHtml(l.name)} (${l.percentage}%)</span>`;
+          leg.className = "lang-chip";
+          leg.innerHTML = `<span class="lang-dot" style="background-color: ${color};"></span><span>${escapeHtml(l.name)} (${l.percentage}%)</span>`;
           langLegend.appendChild(leg);
         });
       } else {
-        langLegend.innerHTML = '<span style="color: var(--text-muted); font-size: 0.8rem;">No language breakdown available.</span>';
+        langLegend.innerHTML = '<span style="color: var(--text-muted); font-size: 0.78rem;">No language breakdown available.</span>';
       }
 
       // Action links
@@ -505,14 +721,14 @@
       const aiNoticeText = document.getElementById("aiNoticeText");
 
       if (guide.is_ai_generated) {
-        aiStatusPill.className = "pill-ai";
+        aiStatusPill.className = "badge-tag badge-tag-ai";
         aiStatusPill.textContent = `Gemma 4 (${guide.model_used || modelId})`;
-        aiNoticeBanner.className = "status-banner ai";
+        aiNoticeBanner.className = "status-pill-bar ai";
         aiNoticeText.textContent = guide.ai_status_message || "Synthesized by Gemma 4 via Google Gemini API.";
       } else {
-        aiStatusPill.className = "pill-fact";
+        aiStatusPill.className = "badge-tag badge-tag-heuristic";
         aiStatusPill.textContent = "Heuristic Analysis";
-        aiNoticeBanner.className = "status-banner heuristic";
+        aiNoticeBanner.className = "status-pill-bar heuristic";
         aiNoticeText.textContent = guide.ai_status_message || "Generated from repository files and manifests.";
       }
 
@@ -527,28 +743,29 @@
       if (guide.important_files && guide.important_files.length > 0) {
         guide.important_files.forEach(f => {
           const importance = (f.importance || "Helpful").toLowerCase();
-          let badgeClass = "badge-helpful";
-          if (importance.includes("essential")) badgeClass = "badge-essential";
-          else if (importance.includes("high")) badgeClass = "badge-high";
-          else if (importance.includes("reference")) badgeClass = "badge-reference";
+          let badgeClass = "importance-helpful";
+          if (importance.includes("essential")) badgeClass = "importance-essential";
+          else if (importance.includes("high")) badgeClass = "importance-high";
+          else if (importance.includes("reference")) badgeClass = "importance-reference";
 
           const fileUrl = `${facts.html_url}/blob/${facts.default_branch}/${f.path}`;
 
           const item = document.createElement("div");
-          item.className = "file-item";
+          item.className = "file-row";
           item.innerHTML = `
-            <div class="file-info">
-              <a href="${escapeHtml(fileUrl)}" target="_blank" rel="noopener noreferrer" class="file-name">
-                📄 ${escapeHtml(f.path)}
+            <div class="file-row-main">
+              <a href="${escapeHtml(fileUrl)}" target="_blank" rel="noopener noreferrer" class="file-path-link">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                <span>${escapeHtml(f.path)}</span>
               </a>
-              <div class="file-role">${escapeHtml(f.role)}</div>
+              <div class="file-role-text">${escapeHtml(f.role)}</div>
             </div>
-            <span class="badge-importance ${badgeClass}">${escapeHtml(f.importance || "Helpful")}</span>
+            <span class="importance-pill ${badgeClass}">${escapeHtml(f.importance || "Helpful")}</span>
           `;
           filesContainer.appendChild(item);
         });
       } else {
-        filesContainer.innerHTML = '<div style="color: var(--text-muted); font-size: 0.88rem;">No specific key files flagged.</div>';
+        filesContainer.innerHTML = '<div style="color: var(--text-muted); font-size: 0.85rem;">No specific key files flagged.</div>';
       }
 
       // 4. Setup Steps
@@ -558,27 +775,30 @@
       if (guide.setup_steps && guide.setup_steps.length > 0) {
         guide.setup_steps.forEach((step, idx) => {
           const card = document.createElement("div");
-          card.className = "setup-step-card";
+          card.className = "step-card";
 
           const cmdEscaped = escapeHtml(step.command);
           const rawCmd = step.command;
 
           card.innerHTML = `
-            <div class="setup-step-header">
+            <div class="step-card-header">
               <span>${escapeHtml(step.title || `Step ${idx + 1}`)}</span>
             </div>
-            <div class="setup-step-body">
-              <div class="code-wrapper">
-                <button class="btn-copy" onclick="copyToClipboard(\`${rawCmd.replace(/`/g, "\\`").replace(/\\/g, "\\\\")}\`, this)">Copy</button>
-                <pre class="code-block">${cmdEscaped}</pre>
+            <div class="step-card-body">
+              <div class="code-terminal">
+                <button class="btn-copy-code" onclick="copyToClipboard(\`${rawCmd.replace(/`/g, "\\`").replace(/\\/g, "\\\\")}\`, this)" title="Copy command">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                  <span>Copy</span>
+                </button>
+                <pre>${cmdEscaped}</pre>
               </div>
-              ${step.notes ? `<div class="setup-step-notes">💡 ${escapeHtml(step.notes)}</div>` : ""}
+              ${step.notes ? `<div class="step-notes-text">💡 ${escapeHtml(step.notes)}</div>` : ""}
             </div>
           `;
           stepsContainer.appendChild(card);
         });
       } else {
-        stepsContainer.innerHTML = '<div style="color: var(--text-muted); font-size: 0.88rem;">No setup commands could be determined automatically. Check the project README.</div>';
+        stepsContainer.innerHTML = '<div style="color: var(--text-muted); font-size: 0.85rem;">No setup commands could be determined automatically. Check the project README.</div>';
       }
 
       // 5. Suggested Contributions
@@ -587,22 +807,23 @@
 
       if (guide.suggested_contributions && guide.suggested_contributions.length > 0) {
         guide.suggested_contributions.forEach(s => {
-          const diffClass = (s.difficulty || "").toLowerCase().includes("beginner") ? "difficulty-beginner" : "difficulty-intermediate";
+          const isBeginner = (s.difficulty || "").toLowerCase().includes("beginner");
+          const diffClass = isBeginner ? "diff-tag-beginner" : "diff-tag-intermediate";
           
           const card = document.createElement("div");
-          card.className = "suggestion-card";
+          card.className = "suggestion-box";
           card.innerHTML = `
-            <div class="suggestion-header">
-              <h3 class="suggestion-title">${escapeHtml(s.area)}</h3>
-              <span class="badge-difficulty ${diffClass}">${escapeHtml(s.difficulty || "Beginner")}</span>
+            <div class="suggestion-top">
+              <h3 class="suggestion-heading">${escapeHtml(s.area)}</h3>
+              <span class="diff-tag ${diffClass}">${escapeHtml(s.difficulty || "Beginner")}</span>
             </div>
-            <p class="suggestion-desc">${escapeHtml(s.description)}</p>
-            ${s.evidence ? `<div class="suggestion-evidence"><strong>Evidence:</strong> ${escapeHtml(s.evidence)}</div>` : ""}
+            <p class="suggestion-p">${escapeHtml(s.description)}</p>
+            ${s.evidence ? `<div class="suggestion-evid"><strong>Evidence:</strong> ${escapeHtml(s.evidence)}</div>` : ""}
           `;
           suggGrid.appendChild(card);
         });
       } else {
-        suggGrid.innerHTML = '<div style="color: var(--text-muted); font-size: 0.88rem;">No beginner opportunities suggested yet.</div>';
+        suggGrid.innerHTML = '<div style="color: var(--text-muted); font-size: 0.85rem;">No beginner opportunities suggested yet.</div>';
       }
 
       // 6. Checklist
@@ -612,13 +833,14 @@
       if (guide.checklist && guide.checklist.length > 0) {
         guide.checklist.forEach((item, i) => {
           const label = document.createElement("label");
-          label.className = "checklist-item";
+          label.className = "checklist-row";
           label.innerHTML = `
-            <input type="checkbox" onchange="this.parentElement.classList.toggle('checked', this.checked)">
-            <span class="checklist-text">${escapeHtml(item.step || item)}</span>
+            <input type="checkbox" onchange="this.parentElement.classList.toggle('checked', this.checked); updateChecklistProgress();">
+            <span class="checklist-label-text">${escapeHtml(item.step || item)}</span>
           `;
           checkContainer.appendChild(label);
         });
+        updateChecklistProgress();
       }
 
       // Reveal results smoothly
